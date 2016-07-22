@@ -2,12 +2,11 @@
 let mongoose = require('mongoose');
 
 const objectid = {
-  type: 'string',
-  maxLength: 24,
-  minLength: 24
+  type: Number,
 };
 
 const UserSchema = mongoose.Schema({
+  _id: objectid,
   email: {
     type: 'string',
     format: 'email',
@@ -61,9 +60,6 @@ const UserSchema = mongoose.Schema({
   description: {
     type: 'string'
   },
-  birthday_mysql: {
-    type: 'string'
-  },
   birthday: {
     type: 'object',
     properties: {
@@ -78,8 +74,7 @@ const UserSchema = mongoose.Schema({
       }
     }
   },
-  infodeck: objectid,
-  infodeck_mysqlid: String
+  infodeck_id: objectid,
 });
 
 module.exports = UserSchema;
