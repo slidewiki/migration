@@ -74,7 +74,7 @@ const UserSchema = mongoose.Schema({
       }
     }
   },
-  infodeck_id: objectid,
+  infodeck_id: objectid
 });
 
 module.exports = UserSchema;

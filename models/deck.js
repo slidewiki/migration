@@ -25,61 +25,58 @@ const ContentItem = {
 };
 
 const DeckRevision = mongoose.Schema({
-  type: 'object',
-  properties: {
-    _id: object_id,
-    title: {
-      type: 'string',
-      required: true
-    },
-    timestamp: {
-      type: 'string',
-      required: true
-    },
-    language: {
+  _id: 'string',
+  title: {
+    type: 'string',
+    required: true
+  },
+  timestamp: {
+    type: 'string'
+  },
+  language: {
+    type: 'string'
+  },
+  user_id: object_id,
+  parent_revision_id: object_id,
+  theme_id: object_id,
+  transition_id: object_id,
+  comment: {
+    type: 'string'
+  },
+  abstract: {
+    type: 'string'
+  },
+  footer: {
+    text: {
       type: 'string'
-    },
-    user_id: object_id,
-    parent_revision_id: object_id,
-    theme_id: object_id,
-    transition_id: object_id,
-    comment: {
-      type: 'string'
-    },
-    abstract: {
-      type: 'string'
-    },
-    footer: {
-      text: {
-        type: 'string'
-      }
-    },
-    isFeatured: {
-      type: 'number'
-    },
-    priority: {
-      type: 'number'
-    },
-    visibility: {
-      type: 'boolean'
-    },
-    language: {
-      type: 'string'
-    },
-    translated_from: {
-      type: 'object',
-      properties: {
-        status: {
-          type: 'string',
-          enum: ['original', 'google', 'revised']
-        },
-        source_revision_id: object_id
-      }
-    },
-    tags: [String], //array of strings
-    contentItems: [ContentItem], //array of content items
-    dataSources: [String] //array of strings?
-  }
+    }
+  },
+  isFeatured: {
+    type: 'number'
+  },
+  priority: {
+    type: 'number'
+  },
+  visibility: {
+    type: 'boolean'
+  },
+  language: {
+    type: 'string'
+  },
+  translated_from: {
+    type: 'object',
+    properties: {
+      status: {
+        type: 'string',
+        enum: ['original', 'google', 'revised']
+      },
+      source_revision_id: object_id
+    }
+  },
+  tags: [String], //array of strings
+  contentItems: [ContentItem], //array of content items
+  dataSources: [String] //array of strings?
+
 });
 
 const DeckSchema = mongoose.Schema({
@@ -116,4 +113,4 @@ const DeckSchema = mongoose.Schema({
     }
   }
 });
-module.exports = DeckSchema;
+module.exports = {DeckSchema, DeckRevision, ContentItem};
