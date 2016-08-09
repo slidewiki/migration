@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "async": "^2.0.0",
+    "bluebird": "^3.4.1",
     "colors": "^1.1.2",
     "eslint": "^3.1.1",
     "eslint-plugin-promise": "^2.0.0",
@@ -18,5 +19,9 @@
     "grunt-execute": "^0.2.2",
     "mongoose": "^4.5.5",
     "mysql": "^2.11.1"
+  },
+  "devDependencies": {
+    "eslint": "^3.2.2",
+    "eslint-plugin-react": "^6.0.0"
   }
 }
