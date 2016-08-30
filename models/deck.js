@@ -6,26 +6,27 @@ const object_id = {
 };
 
 const ContentItem = {
-    type: 'object',
-    properties: {
-        order: {
-            type: 'string',
-            required: true
-        },
-        kind: {
-            type: 'string',
-            enum: ['deck', 'slide'],
-            required: true
-        },
-        item_id: {
-            type: Number,
-            required: true
-        }
-    }
+
+    order: {
+        type: 'string',
+        required: true
+    },
+    kind: {
+        type: 'string',
+        enum: ['deck', 'slide'],
+        required: true
+    },
+    ref: {
+        id: Number,
+        revision: Number,
+        _id: Number
+    },
+    _id: Number
 };
 
-const DeckRevision = mongoose.Schema({
-    _id: 'string',
+const DeckRevision = {
+    id: Number,
+    _id: Number,
     title: {
         type: 'string',
         required: true
@@ -36,8 +37,19 @@ const DeckRevision = mongoose.Schema({
     language: {
         type: 'string'
     },
-    user_id: object_id,
-    parent_revision_id: object_id,
+    user: {
+        type: String
+    },
+    license: {
+        type: String
+    },
+    parent: {
+        id: String,
+        revision: Number
+    },
+    //CHANGE TO
+    //user_id: object_id,
+    //parent_revision_id: object_id,
     theme_id: object_id,
     transition_id: object_id,
     comment: {
@@ -71,10 +83,10 @@ const DeckRevision = mongoose.Schema({
         }
     },
     tags: [String], //array of strings
-    contentItems: [mongoose.Schema.Types.Mixed], //array of content items
-    dataSources: [String] //array of strings?
-
-});
+    contentItems: [ContentItem], //array of content items
+    dataSources: [String], //array of strings?
+    usage: [Number] //where this revision is used
+};
 
 const DeckSchema = mongoose.Schema({
     _id: object_id,
@@ -82,8 +94,8 @@ const DeckSchema = mongoose.Schema({
         type: 'string',
         required: true
     },
-    user_id: {
-        type: Number,
+    user: {
+        type: 'string',
         required: true
     },
     translations: { //put here all translations explicitly - deck ids
@@ -108,6 +120,7 @@ const DeckSchema = mongoose.Schema({
         items: {
             type: 'string'
         }
-    }
+    },
+    active: Number
 });
 module.exports = {DeckSchema, DeckRevision, ContentItem};
