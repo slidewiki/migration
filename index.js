@@ -601,7 +601,7 @@ function migrate_users(callback){
 }
 
 function migrate_decks(callback){
-    con.query('SELECT * FROM deck WHERE id = 2846', (err, rows) => {
+    con.query('SELECT * FROM deck WHERE id = 33', (err, rows) => {
         if(err) {
             console.log(err);
             callback(err);
