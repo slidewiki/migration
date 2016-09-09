@@ -6,19 +6,20 @@ const objectid = {
 };
 
 const UserSchema = mongoose.Schema({
-    _id: objectid,
+    _id: {
+        type: Number
+    },
     email: {
         type: 'string',
         format: 'email',
-        required: true
+        required: true,
     },
     username: {
         type: 'string',
-        required: true
+        required: true,
     },
     password: {
-        type: 'string',
-        required :true
+        type: 'string'
     },
     defaults: {
         type: 'array',
@@ -26,30 +27,28 @@ const UserSchema = mongoose.Schema({
             type: 'object'
         }
     },
+    registered: {
+        type: 'string',
+        format: 'datetime'
+    },
     surname: {
         type: 'string'
     },
     forename: {
         type: 'string'
     },
-    gender: {
-        type: 'string',
-        enum: ['male', 'female', null]
-    },
-    locale: {
+    country: {
         type: 'string'
     },
-    hometown: {
-        type: 'string'
-    },
-    location: {
-        type: 'string'
-    },
-    languages: {
+    spokenLanguages: {
         type: 'array',
         items: {
             type: 'string'
         }
+    },
+    frontendLanguage: {
+        type: 'string',
+        required: true,
     },
     picture: {
         type: 'string'
@@ -61,20 +60,21 @@ const UserSchema = mongoose.Schema({
         type: 'string'
     },
     birthday: {
+        type: 'string',
+        format: 'date'
+    },
+    infodeck: {
         type: 'object',
         properties: {
-            year: {
-                type: 'number'
-            },
-            month: {
-                type: 'number'
-            },
-            day: {
-                type: 'number'
+            id: objectid,
+            revision: {
+                type: Number
             }
         }
     },
-    infodeck_id: objectid
+    organization: {
+        type: 'string'
+    }
 });
 
 module.exports = UserSchema;

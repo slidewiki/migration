@@ -24,7 +24,7 @@ const ContentItem = {
     _id: Number
 };
 
-const DeckRevision = {
+const DeckRevision = mongoose.Schema({
     id: Number,
     _id: Number,
     title: {
@@ -34,27 +34,25 @@ const DeckRevision = {
     timestamp: {
         type: 'string'
     },
-    language: {
-        type: 'string'
-    },
     user: {
         type: String
     },
-    license: {
-        type: String
-    },
     parent: {
-        id: String,
+        id: Number,
         revision: Number
     },
-    //CHANGE TO
-    //user_id: object_id,
-    //parent_revision_id: object_id,
-    theme_id: object_id,
-    transition_id: object_id,
-    comment: {
+    language: {
         type: 'string'
     },
+
+    license: {
+        type: String,
+        enum: ['CC0', 'CC BY', 'CC BY-SA']
+    },
+
+    theme: object_id,
+    transition: object_id,
+    comment: 'string',
     abstract: {
         type: 'string'
     },
@@ -73,30 +71,42 @@ const DeckRevision = {
         type: 'boolean'
     },
     translated_from: {
-        type: 'object',
-        properties: {
-            status: {
-                type: 'string',
-                enum: ['original', 'google', 'revised']
+        status: {
+            type: 'string',
+            enum: ['original', 'google', 'revised', null]
+        },
+        source: {
+            id: {
+                type: 'number'
             },
-            source_revision_id: object_id
+            revision: {
+                type: 'number'
+            }
+        },
+        translator: {
+            id: 'number',
+            username: 'string'
         }
     },
     tags: [String], //array of strings
     contentItems: [ContentItem], //array of content items
     dataSources: [String], //array of strings?
-    usage: [Number] //where this revision is used
-};
+    usage: [{id: Number, revision: Number}] //where this revision is used
+});
 
 const DeckSchema = mongoose.Schema({
     _id: object_id,
     timestamp: {
         type: 'string',
+        format: 'datetime',
         required: true
     },
     user: {
         type: 'string',
         required: true
+    },
+    description: {
+        type: 'string'
     },
     translations: { //put here all translations explicitly - deck ids
         type: 'array',
@@ -107,12 +117,27 @@ const DeckSchema = mongoose.Schema({
             deck_id: object_id
         }
     },
-    translated_from: object_id,
-    derived_from: {
-        type: 'string'
+    translated_from: {
+        status: {
+            type: 'string',
+            enum: ['original', 'google', 'revised', null]
+        },
+        source: {
+            id: {
+                type: 'number'
+            },
+            revision: {
+                type: 'number'
+            }
+        },
+        translator: {
+            id: 'number',
+            username: 'string'
+        }
     },
     lastUpdate: {
-        type: 'string'
+        type: 'string',
+        format: 'datetime'
     },
     revisions: [DeckRevision], //array of deck revisions or array if their ids?
     tags: {
@@ -121,6 +146,7 @@ const DeckSchema = mongoose.Schema({
             type: 'string'
         }
     },
-    active: Number
+    active: Number,
+    datasource: String
 });
 module.exports = {DeckSchema, DeckRevision, ContentItem};
