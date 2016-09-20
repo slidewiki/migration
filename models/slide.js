@@ -31,7 +31,7 @@ const SlideRevision = mongoose.Schema({
     content: {
         type: 'string'
     },
-    speakernotes: {
+    speakerNotes: {
         type: 'string'
     },
     user: objectid,
@@ -70,31 +70,28 @@ const SlideRevision = mongoose.Schema({
     },
     tags: ['string'],
     media: [objectid],
-    dataSources: [objectid],
+    dataSources: ['string'],
     usage: [{id: Number, revision: Number}]
 });
 
 const SlideSchema = mongoose.Schema({
     _id: 'number',
     user: objectid,
-    kind: { //do not need it
-        type: 'string'
-    },
     description: {
         type: 'string'
     },
-    language: { //might be mixed, store for each revision, do not need it here
-        type: 'string'
-    },
-    translation: {
-        source: 'object'
-    },
-    position: { //do not need it
-        type: 'number',
-        minimum: 1
+    translations: { //put here all translations explicitly - slide ids
+        type: 'array',
+        items: {
+            language: {
+                type: 'string'
+            },
+            deck_id: objectid
+        }
     },
     timestamp: {
-        type: 'string'
+        type: 'string',
+        format: 'datetime'
     },
     revisions: [SlideRevision],
     contributors: {

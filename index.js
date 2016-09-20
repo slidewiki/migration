@@ -33,17 +33,110 @@ const con = mysql.createConnection({
     database: 'slidewiki'
 });
 
-function process_content(html){
-    let re = /<h2>(.*?)<\/h2>/ig;
-    let match, title = '';
-    match = re.exec(html);
-    //let content = html.match();
-    if (match){
-        title += match[1];
+con.connect((err) => {
+    if(err){
+        return console.error('Error connecting to Database');
     }
-    //let re2 = /(<h2>)(.*?)(<\/h2>)(.*?)/ig;
-    let content = html.replace('<h2>' + title + '</h2>', '');
-    return {content: content, title: title};
+    else { // here comes the migration
+        async.waterfall([
+            drop_users, //try to empty users collection;
+            migrate_users, //migrate users
+            drop_slides,
+            drop_decks, //try to empty deck collection; AFTER THAT
+            migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
+            //add_usage_slides,
+            //add_usage_decks,
+            //add_translations_slides,
+            //add_translations_decks
+            //fill_infodecks//add decks into users.infodeck where necessary //as there are only two users with infodeck added, skip this
+            //drop_slides,//try to empty slides collection; AFTER THAT
+            //migrate_slides //slide_revision and collaborators
+
+
+            //*********STEP4: migrate media
+            //try to empty media collection
+            //migrate media table and media files
+            //********STEP5: migrate questions
+            //try to empty questions collection; AFTER THAT
+            //migrate questions, answers and user testsbf
+        ],
+        (err) => {
+            if (err) {
+                console.error(err);
+                mongoose.connection.close();
+                return;
+            }
+            console.log('Migration is successful');
+            mongoose.connection.close();
+            return;
+        });
+    }
+});
+
+
+
+function migrate_users(callback){
+    con.query('SELECT * FROM users WHERE 1', (err, rows) => {
+        if(err) {
+            callback(err);
+            return;
+        }
+        let mysql_users = rows;
+        async.each(mysql_users, process_user, callback);
+    });
+}
+
+function migrate_decks(callback){
+    con.query('SELECT * FROM deck WHERE id = 584', (err, rows) => {
+        if(err) {
+            console.log(err);
+            callback(err);
+            return;
+        }else{
+            let mysql_decks = rows;
+            async.each(mysql_decks, (deck, cbEach) => {
+                console.log('Adding deck ' + deck.id);
+                process_deck(deck, () => {
+                    cbEach();
+                });
+            }, callback);
+        }
+    });
+}
+function drop_users(callback){
+    try {
+        mongoose.connection.db.dropCollection('users');
+    }
+    catch(err) {
+        callback(err);
+        return;
+    }
+    console.log('Users collection is dropped');
+    callback();
+}
+
+function drop_decks(callback){
+    try {
+        mongoose.connection.db.dropCollection('decks');
+    }
+    catch(err) {
+        callback(err);
+        return;
+    }
+    console.log('Decks collection is dropped');
+    callback();
+}
+
+function drop_slides(callback){
+    try {
+        mongoose.connection.db.dropCollection('slides');
+    }
+    catch(err) {
+        callback(err);
+        return;
+    }
+    console.log('Slides collection is dropped');
+    callback();
 }
 
 function process_deck(mysql_deck, callback){
@@ -93,7 +186,7 @@ function process_deck(mysql_deck, callback){
                 }
             });
         },
-        function countRevisions(mysql_revisions, cbAsync){
+        function countRevisions(mysql_revisions, cbAsync){ //adjusting revision ids to a new schema
             async.eachOf(mysql_revisions, (revision, key, cbEachOf) => {
                 revision._id = revision.id;
                 revision.id = key+1;
@@ -112,6 +205,23 @@ function process_deck(mysql_deck, callback){
         callback();
     });
 }
+
+
+
+function process_content(html){
+    let re = /<h2>(.*?)<\/h2>/ig;
+    let match, title = '';
+    match = re.exec(html);
+    //let content = html.match();
+    if (match){
+        title += match[1];
+    }
+    //let re2 = /(<h2>)(.*?)(<\/h2>)(.*?)/ig;
+    let content = html.replace('<h2>' + title + '</h2>', '');
+    return {content: content, title: title};
+}
+
+
 
 function processTags(revision, callback){
     let tags = [];
@@ -589,69 +699,6 @@ function process_user(mysql_user, callback){
     });
 }
 
-function migrate_users(callback){
-    con.query('SELECT * FROM users WHERE 1', (err, rows) => {
-        if(err) {
-            callback(err);
-            return;
-        }
-        let mysql_users = rows;
-        async.each(mysql_users, process_user, callback);
-    });
-}
-
-function migrate_decks(callback){
-    con.query('SELECT * FROM deck WHERE id = 33', (err, rows) => {
-        if(err) {
-            console.log(err);
-            callback(err);
-            return;
-        }else{
-            let mysql_decks = rows;
-            async.each(mysql_decks, (deck, cbEach) => {
-                console.log('Adding deck ' + deck.id);
-                process_deck(deck, () => {
-                    cbEach();
-                });
-            }, callback);
-        }
-    });
-}
-function drop_users(callback){
-    try {
-        mongoose.connection.db.dropCollection('users');
-    }
-    catch(err) {
-        callback(err);
-        return;
-    }
-    console.log('Users collection is dropped');
-    callback();
-}
-
-function drop_decks(callback){
-    try {
-        mongoose.connection.db.dropCollection('decks');
-    }
-    catch(err) {
-        callback(err);
-        return;
-    }
-    console.log('Decks collection is dropped');
-    callback();
-}
-
-function drop_slides(callback){
-    try {
-        mongoose.connection.db.dropCollection('slides');
-    }
-    catch(err) {
-        callback(err);
-        return;
-    }
-    console.log('Slides collection is dropped');
-    callback();
-}
 
 function add_usage_slides(callback){ //adds usage for all slides
     Slide.find({}, function(err, slides) {
@@ -691,43 +738,3 @@ function add_usage_deck(callback){ //adds usage for all decks
         }, callback);
     });
 }
-
-con.connect((err) => {
-    if(err){
-        return console.error('Error connecting to Database');
-    }
-    else { // here comes the migration
-        async.waterfall([
-            //drop_users, //try to empty users collection;
-            //migrate_users, //migrate users
-            drop_slides,
-            drop_decks, //try to empty deck collection; AFTER THAT
-            migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
-            //add_usage_slides,
-            //add_usage_decks,
-            //add_translations_slides,
-            //add_translations_decks
-            //fill_infodecks//add decks into users.infodeck where necessary //as there are only two users with infodeck added, skip this
-            //drop_slides,//try to empty slides collection; AFTER THAT
-            //migrate_slides //slide_revision and collaborators
-
-
-            //*********STEP4: migrate media
-            //try to empty media collection
-            //migrate media table and media files
-            //********STEP5: migrate questions
-            //try to empty questions collection; AFTER THAT
-            //migrate questions, answers and user testsbf
-        ],
-        (err) => {
-            if (err) {
-                console.error(err);
-                mongoose.connection.close();
-                return;
-            }
-            console.log('Migration is successful');
-            mongoose.connection.close();
-            return;
-        });
-    }
-});

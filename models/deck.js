@@ -35,7 +35,7 @@ const DeckRevision = mongoose.Schema({
         type: 'string'
     },
     user: {
-        type: String
+        type: Number
     },
     parent: {
         id: Number,
@@ -44,12 +44,6 @@ const DeckRevision = mongoose.Schema({
     language: {
         type: 'string'
     },
-
-    license: {
-        type: String,
-        enum: ['CC0', 'CC BY', 'CC BY-SA']
-    },
-
     theme: object_id,
     transition: object_id,
     comment: 'string',
@@ -102,7 +96,7 @@ const DeckSchema = mongoose.Schema({
         required: true
     },
     user: {
-        type: 'string',
+        type: 'number',
         required: true
     },
     description: {
@@ -147,6 +141,10 @@ const DeckSchema = mongoose.Schema({
         }
     },
     active: Number,
-    datasource: String
+    datasource: String,
+    license: {
+        type: String,
+        enum: ['CC0', 'CC BY', 'CC BY-SA']
+    }
 });
 module.exports = {DeckSchema, DeckRevision, ContentItem};
