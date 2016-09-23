@@ -27,6 +27,7 @@ const ContentItem = {
 const DeckRevision = mongoose.Schema({
     id: Number,
     _id: Number,
+    mysql_id: Number,
     title: {
         type: 'string',
         required: true

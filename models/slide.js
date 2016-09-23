@@ -21,6 +21,7 @@ const SlideRevision = mongoose.Schema({
         minimum: 1,
         required: true
     },
+    mysql_id: Number,
     title: {
         type: 'string'
     },
@@ -39,6 +40,7 @@ const SlideRevision = mongoose.Schema({
         id: Number,
         revision: Number
     },
+    language: String,
     //CHANGE TO
     //parent_revision_id: objectid,
     popularity: {

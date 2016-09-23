@@ -8,6 +8,7 @@ let async = require('async');
 let UserSchema = require('./models/user.js');
 let DeckSchema = require('./models/deck.js');
 let SlideSchema = require('./models/slide.js');
+let Config = require('./config.js');
 
 
 const User = mongoose.model('Users', UserSchema);
@@ -16,22 +17,18 @@ const Slide = mongoose.model('Slides', SlideSchema.SlideSchema);
 // const DeckRevision = mongoose.model('DeckRevisions', DeckSchema.DeckRevision);
 
 mongoose.Promise = global.Promise;
-mongoose.connect('mongodb://0.0.0.0:27018/slidewiki');
 
-let mongo = mongoose.connection;
-mongo.on('error', () => {
-    console.error.bind(console, 'connection error:');
+//connecting to mongoDB
+mongoose.connect(Config.PathToMongoDB, (err) => {
+    if (err) throw err;
     return;
 });
-// mongo.once('open', () => {
-//   console.log('mongodb connected!');
-// });
 
-const con = mysql.createConnection({
-    user: 'slidewiki',
-    password: 'sw123',
-    database: 'slidewiki'
-});
+//connecting to mysql
+const con = mysql.createConnection(Config.MysqlConnection);
+
+//array of deck ids to migrate
+const DECKS_TO_MIGRATE = [27,33];
 
 con.connect((err) => {
     if(err){
@@ -44,8 +41,7 @@ con.connect((err) => {
             drop_slides,
             drop_decks, //try to empty deck collection; AFTER THAT
             migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
-            //add_usage_slides,
-            //add_usage_decks,
+            add_usage
             //add_translations_slides,
             //add_translations_decks
             //fill_infodecks//add decks into users.infodeck where necessary //as there are only two users with infodeck added, skip this
@@ -73,8 +69,6 @@ con.connect((err) => {
     }
 });
 
-
-
 function migrate_users(callback){
     con.query('SELECT * FROM users WHERE 1', (err, rows) => {
         if(err) {
@@ -87,7 +81,15 @@ function migrate_users(callback){
 }
 
 function migrate_decks(callback){
-    con.query('SELECT * FROM deck WHERE id = 584', (err, rows) => {
+    let query = '';
+    async.eachOf(DECKS_TO_MIGRATE, (deck_id, key) => { //building a query for migrating several decks
+        if (key){
+            query += ' OR id = ' + deck_id;
+        }else{
+            query = 'id = ' + deck_id;
+        }
+    });
+    con.query('SELECT * FROM deck WHERE ' + query, (err, rows) => {
         if(err) {
             console.log(err);
             callback(err);
@@ -103,6 +105,7 @@ function migrate_decks(callback){
         }
     });
 }
+
 function drop_users(callback){
     try {
         mongoose.connection.db.dropCollection('users');
@@ -149,10 +152,9 @@ function process_deck(mysql_deck, callback){
                 user: mysql_deck.user_id,
                 description: '',
                 translation: [], //TODO
-                //translated_from: mysql_deck.translated_from, //TODO do not need it here
                 lastUpdate: Date.now, //TODO check all slides later in the code
                 revisions: [],
-                tags: [], //TODO
+                tags: [], //TODO collect from all revisions
                 active: null,
                 datasource: mysql_deck.description
             });
@@ -160,7 +162,7 @@ function process_deck(mysql_deck, callback){
             new_deck.save((err, new_deck) => {
                 if (err){
                     if (err.code === 11000){ //deck has already been processed
-                        console.log('Deck exists with id' + mysql_deck.id);
+                        //console.log('Deck exists with id' + mysql_deck.id);
                         cbAsync(err, null);
                     }else{
                         console.log('Deck failed, id = ' + mysql_deck.id + ' error: ' + err);
@@ -186,10 +188,12 @@ function process_deck(mysql_deck, callback){
                 }
             });
         },
-        function countRevisions(mysql_revisions, cbAsync){ //adjusting revision ids to a new schema
+        function countRevisions(mysql_revisions, cbAsync){ //adjusting revision ids to a new schema, adding language
             async.eachOf(mysql_revisions, (revision, key, cbEachOf) => {
-                revision._id = revision.id;
+                revision.mysql_id = revision.id;
                 revision.id = key+1;
+                revision._id = key+1;
+                revision.language = mysql_deck.language;
                 return cbEachOf();
             }, () => {
                 cbAsync(null, mysql_revisions);
@@ -198,18 +202,14 @@ function process_deck(mysql_deck, callback){
         function addRevisions(mysql_revisions, cbAsync){
             async.each(mysql_revisions, process_revision, cbAsync);
         }
-    ], () => {
-        //console.log('Deck saved with id: ' + mysql_deck.id);
-        //add_usage_deck(mysql_deck.id, callback);
-        //processed_decks.push(mysql_deck.id);
-        callback();
+    ], (err) => {
+        callback(err);
     });
 }
 
 
-
 function process_content(html){
-    let re = /<h2>(.*?)<\/h2>/ig;
+    let re = /<h2>(.*?)<\/h2>/ig; //for cutting a title
     let match, title = '';
     match = re.exec(html);
     //let content = html.match();
@@ -217,15 +217,15 @@ function process_content(html){
         title += match[1];
     }
     //let re2 = /(<h2>)(.*?)(<\/h2>)(.*?)/ig;
-    let content = html.replace('<h2>' + title + '</h2>', '');
+    let content = html.replace('<h2>' + title + '</h2>', ''); //cutting a title
+    content = content.replace(/.\/upload/g, 'http://slidewiki.org/upload'); //replace all occurences of media files with the correct absolute url
     return {content: content, title: title};
 }
 
 
-
 function processTags(revision, callback){
     let tags = [];
-    con.query('SELECT * FROM tag WHERE item_type = "deck" AND item_id = ' + revision._id, (err,rows) => {
+    con.query('SELECT * FROM tag WHERE item_type = "deck" AND item_id = ' + revision.mysql_id, (err,rows) => {
         if(err) {
             callback(err, tags);
         }else{
@@ -261,7 +261,7 @@ function process_slide(mysql_slide, callback){
                         //console.log('Slide exists with id' + mysql_slide.id);
                         callback();
                     }else{
-                        //console.log('Slide failed, id = ' + mysql_slide.id + ' error: ' + err);
+                        console.log('Slide failed, id = ' + mysql_slide.id + ' error: ' + err);
                         cbAsync(null, new_slide); //deck is not saved, but the migration continues
                     }
                 }else{
@@ -280,10 +280,12 @@ function process_slide(mysql_slide, callback){
                 }
             });
         },
-        function countRevisions(mysql_revisions, cbAsync){
+        function countRevisions(mysql_revisions, cbAsync){ //re-calculating the revisions and adding language
             async.eachOf(mysql_revisions, (revision, key, cbEachOf) => {
-                revision._id = revision.id;
+                revision.mysql_id = revision.id;
                 revision.id = key+1;
+                revision._id = key+1;
+                revision.language = mysql_slide.language; //will process it in the process_revision
                 return cbEachOf();
             }, () => {
                 cbAsync(null, mysql_revisions);
@@ -375,7 +377,7 @@ function collectUsage(new_revision, revision_type, callback){
                 //console.log('adding usage for slide ' + new_revision._id);
                 con.query('SELECT deck_revision.deck_id AS deck_id, deck_content.deck_revision_id AS revision_id ' +
                 'FROM deck_content LEFT JOIN deck_revision ON deck_revision.id = deck_content.deck_revision_id ' +
-                'WHERE item_type = "slide" AND item_id = ' + new_revision._id, (err, rows) => {
+                'WHERE item_type = "slide" AND item_id = ' + new_revision.mysql_id, (err, rows) => {
                     if (err) {
                         cbAsync(err, null);
                     } else {
@@ -386,7 +388,7 @@ function collectUsage(new_revision, revision_type, callback){
             } else {
                 con.query('SELECT deck_revision.deck_id AS deck_id, deck_content.deck_revision_id AS revision_id ' +
                 'FROM deck_content LEFT JOIN deck_revision ON deck_revision.id = deck_content.deck_revision_id ' +
-                'WHERE deck_content.item_type = "deck" AND deck_content.item_id = ' + new_revision._id, (err, rows) => {
+                'WHERE deck_content.item_type = "deck" AND deck_content.item_id = ' + new_revision.mysql_id, (err, rows) => {
                     if (err) {
 
                         cbAsync(err, null);
@@ -417,7 +419,7 @@ function collectUsage(new_revision, revision_type, callback){
                                         if (revision){
                                             usage.revision = revision.id;
                                         } else{
-                                            console.log('error of async for !!!!!!!!!!!!!!!!' + revision_type + new_revision._id + '-' + new_revision.id);
+                                            console.log('error of async for !!!!!!!!!!!!!!!!' + revision_type + new_revision.mysql_id + '-' + new_revision.id);
                                             //usage.revision = 1;
                                         }
                                         //console.log('USAGE: ' +usage);
@@ -445,16 +447,23 @@ function collectUsage(new_revision, revision_type, callback){
 }
 
 function process_revision(mysql_revision, callback){
+    let language_code = '';
+    let language_code_array = mysql_revision.language.split('-'); //as in old slidewiki language had a different format
+    if (language_code_array.length){
+        language_code = language_code_array[0];
+    }
     if (mysql_revision.slide){ //this is slide revision
         let new_revision = {
             _id: mysql_revision._id,
             id: mysql_revision.id,
+            mysql_id: mysql_revision.mysql_id,
             user: mysql_revision.user_id,
             content: process_content(mysql_revision.content).content,
             title: process_content(mysql_revision.content).title,
             timestamp: mysql_revision.timestamp,
             speakernotes: mysql_revision.note,
-            parent: {id: mysql_revision._id, revision: mysql_revision.based_on},
+            parent: {id: null, revision: mysql_revision.based_on}, //TODO
+            language: language_code,
             comment: mysql_revision.comment,
             tags: [],
             license: 'CC BY-SA',
@@ -492,16 +501,17 @@ function process_revision(mysql_revision, callback){
         let new_revision = {
             _id: mysql_revision._id,
             id: mysql_revision.id,
+            mysql_id: mysql_revision.mysql_id,
             title: mysql_revision.title,
             timestamp: mysql_revision.timestamp,
             user: mysql_revision.user_id,
-            parent: {id: mysql_revision._id, revision: mysql_revision.based_on},
+            parent: {id: null, revision: mysql_revision.based_on}, //TODO
             popularity: 0,
             license: 'CC BY-SA',
             isFeatured: mysql_revision.is_featured,
             priority: 0,
             visibility: mysql_revision.visibility,
-            language: mysql_revision.language,
+            language: language_code,
             translated_from: {status: mysql_revision.translation_status, source: {id: null, revision: mysql_revision.translated_from_revision}, translator: {id: null, username: null}},
             tags: [],
             preferences: [],
@@ -532,7 +542,7 @@ function process_revision(mysql_revision, callback){
                 });
             },
             function getRevisionContent(cbAsync){ //this should be a recursion
-                con.query('SELECT * FROM deck_content WHERE deck_revision_id = ' + mysql_revision._id, (err, rows) => {
+                con.query('SELECT * FROM deck_content WHERE deck_revision_id = ' + mysql_revision.mysql_id, (err, rows) => {
                     if (err){
                         cbAsync(err, null);
                     } else{
@@ -610,6 +620,20 @@ function process_revision(mysql_revision, callback){
                                 }
                             });
                             cbwaterfall();
+                            // if (row.item_type === 'deck'){
+                            //     Deck.findOne({'_id' : row.item}, (err, found) => {
+                            //         let revision = found.revisions.id(revision_number);
+                            //         if (revision){
+                            //             revision.usage.push(new_revision.id);
+                            //             cbwaterfall();
+                            //         } else{
+                            //             console.log('Something wrong');
+                            //             cbwaterfall();
+                            //         }
+                            //     });
+                            // }else{
+                            //     cbwaterfall();
+                            // }
                         }
                     ], () => {
                         cbEach();
@@ -626,9 +650,7 @@ function process_revision(mysql_revision, callback){
                             if (err){
                                 cbEach(err);
                             } else{
-                                process_deck(rows[0], () => {
-                                    cbEach();
-                                });
+                                process_deck(rows[0], cbEach);
                             }
                         });
                     }else{
@@ -651,15 +673,13 @@ function process_revision(mysql_revision, callback){
                     {safe: false, upsert: false},
                     cbAsync
                 );
-            },
-        ], (err, new_revision) => {
-            if (err) {
-                console.log(err);
-                callback(err);
             }
-            else
+        ], () => {callback(null, new_revision);
+
+                //console.log(new_revision);
+                //
+
             //console.log('Deck revision saved with id ' + mysql_revision.id + ' for deck ' + mysql_revision.deck_id );
-            callback(null, new_revision);
         });
     }
 }
@@ -700,14 +720,59 @@ function process_user(mysql_user, callback){
 }
 
 
-function add_usage_slides(callback){ //adds usage for all slides
-    Slide.find({}, function(err, slides) {
-        console.log('FOUND ' + slides.length + 'slides++++++++++++++++++++++++++++++++++++++++++++++');
-        async.each(slides, (slide, cbEach) => {
-            async.each(slide.revisions, (revision, cbEach2) => {
-                collectUsage(revision, 'slide', (err, new_revision) => {
-                    slide.save(cbEach2);
-                } );
+function add_usage(callback){ //adds usage looking in the whole decks
+    Deck.find({}, function(err, decks) {
+        //console.log('FOUND ' + slides.length + 'slides++++++++++++++++++++++++++++++++++++++++++++++');
+        async.each(decks, (deck, cbEach) => {
+            async.each(deck.revisions, (revision, cbEach2) => {
+                async.each(revision.contentItems, (item, cbEach3) => {
+                    if (item.kind === 'deck'){
+                        //console.log(item);
+                        Deck.findById(item.ref.id, (err, found) => {
+                            //if (err) console.log(err);
+                            if (found){
+                                //console.log('found.revisions');
+                                let item_revision = found.revisions.id(item.ref.revision);
+                                if (item_revision){
+                                    item_revision.usage.push({id : deck._id , revision: revision.id});
+                                    found.save(cbEach3);
+                                    //cbEach3();
+                                }else{
+                                    console.log(found.revisions);
+                                    console.log('Something wrong');
+                                    cbEach3();
+                                }
+                            }else{
+                                console.log('not found deck with id ' + item.ref.id);
+                                cbEach3();
+                            }
+                            // l
+                        });
+                    }else{ //this is slide item
+                        Slide.findById(item.ref.id, (err, found) => {
+                            //if (err) console.log(err);
+                            if (found){
+                                //console.log('found.revisions');
+                                let item_revision = found.revisions.id(item.ref.revision);
+                                if (item_revision){
+                                    item_revision.usage.push({id : deck._id , revision: revision.id});
+                                    found.save(cbEach3);
+                                    //cbEach3();
+                                }else{
+                                    console.log(found.revisions);
+                                    console.log('Something wrong');
+                                    cbEach3();
+                                }
+                            }else{
+                                console.log('not found deck with id ' + item.ref.id);
+                                cbEach3();
+                            }
+                            // l
+                        });
+                    }
+                }, () => {
+                    cbEach2();
+                });
             }, cbEach);
         }, callback);
     });
