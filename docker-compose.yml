@@ -1,0 +1,21 @@
+mysql:
+  image: mysql
+  environment: MYSQL_ROOT_PASSWORD=linuxisgreat
+  ports:
+    - "3306"        # we might want to access this from the host
+  expose:
+    - "3306"
+
+myadmin:
+  image: phpmyadmin/phpmyadmin
+  links:
+    - mysql
+  ports:
+    - "8081":"80"
+
+# actually started as an interactive session
+# migration:
+#  build: slidewiki/migration-db
+#  links:
+#   - database
+#    - mysql
