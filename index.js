@@ -28,7 +28,37 @@ mongoose.connect(Config.PathToMongoDB, (err) => {
 const con = mysql.createConnection(Config.MysqlConnection);
 
 //array of deck ids to migrate
-const DECKS_TO_MIGRATE = [27,33];
+const DECKS_TO_MIGRATE = [27];
+
+function uniq(a) {
+    //return a;
+    let seen ={};
+    return a.filter(function(item) {
+        return seen.hasOwnProperty(item) ? false : (seen[item] = true);
+    });
+}
+
+
+function format_contributors_slides(callback){
+
+    Slide.find({}, (err, slides) => {
+        async.each(slides, (slide, cbEach) => {
+            if (slide.contributors.length){
+                slide.contributors = uniq(slide.contributors);
+                //slide.contributors = [];
+                //console.log(new_contributors);
+                async.eachOf(slide.contributors, (contributor, key, cbEach2) => {
+                    con.query('SELECT id, username FROM users WHERE id = ' + contributor, (err, username_row) => {
+                        slide.contributors[key] = {id: username_row[0].id, name: username_row[0].username};
+                        cbEach2();
+                    });
+                }, () => {
+                    slide.save(cbEach);
+                });
+            }
+        }, callback);
+    });
+}
 
 con.connect((err) => {
     if(err){
@@ -41,7 +71,8 @@ con.connect((err) => {
             drop_slides,
             drop_decks, //try to empty deck collection; AFTER THAT
             migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
-            add_usage
+            add_usage,
+            format_contributors_slides
             //add_translations_slides,
             //add_translations_decks
             //fill_infodecks//add decks into users.infodeck where necessary //as there are only two users with infodeck added, skip this
@@ -82,13 +113,18 @@ function migrate_users(callback){
 
 function migrate_decks(callback){
     let query = '';
-    async.eachOf(DECKS_TO_MIGRATE, (deck_id, key) => { //building a query for migrating several decks
-        if (key){
-            query += ' OR id = ' + deck_id;
-        }else{
-            query = 'id = ' + deck_id;
-        }
-    });
+    if (DECKS_TO_MIGRATE.length){
+        async.eachOf(DECKS_TO_MIGRATE, (deck_id, key) => { //building a query for migrating several decks
+            if (key){
+                query += ' OR id = ' + deck_id;
+            }else{
+                query = 'id = ' + deck_id;
+            }
+        });
+    }else {
+        query = '1'; //get all decks
+    }
+
     con.query('SELECT * FROM deck WHERE ' + query, (err, rows) => {
         if(err) {
             console.log(err);
@@ -446,6 +482,18 @@ function collectUsage(new_revision, revision_type, callback){
     });
 }
 
+// function uniq(a) {
+//     var prims = {'boolean':{}, 'number':{}, 'string':{}}, objs = [];
+//
+//     return a.filter(function(item) {
+//         var type = typeof item;
+//         if(type in prims)
+//             return prims[type].hasOwnProperty(item) ? false : (prims[type][item] = true);
+//         else
+//             return objs.indexOf(item) >= 0 ? false : objs.push(item);
+//     });
+// }
+
 function process_revision(mysql_revision, callback){
     let language_code = '';
     let language_code_array = mysql_revision.language.split('-'); //as in old slidewiki language had a different format
@@ -486,7 +534,7 @@ function process_revision(mysql_revision, callback){
             function saveRevisionToslide(cbAsync){
                 Slide.findByIdAndUpdate(
                     mysql_revision.slide,
-                    {$push: {'revisions': new_revision}, 'active' : new_revision.id},
+                    {$push: {'revisions': new_revision, 'contributors': new_revision.user}, 'active' : new_revision.id},
                     {safe: false, upsert: false},
                     cbAsync
                 );
