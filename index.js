@@ -30,11 +30,23 @@ const con = mysql.createConnection(Config.MysqlConnection);
 //array of deck ids to migrate
 const DECKS_TO_MIGRATE = [27, 33];
 
+// function uniq(a) {
+//     //return a;
+//     let seen ={};
+//     return a.filter(function(item) {
+//         return seen.hasOwnProperty(item) ? false : (seen[item] = true);
+//     });
+// }
+
 function uniq(a) {
-    //return a;
-    let seen ={};
+    var prims = {'boolean':{}, 'number':{}, 'string':{}}, objs = [];
+
     return a.filter(function(item) {
-        return seen.hasOwnProperty(item) ? false : (seen[item] = true);
+        var type = typeof item;
+        if(type in prims)
+            return prims[type].hasOwnProperty(item) ? false : (prims[type][item] = true);
+        else
+            return objs.indexOf(item) >= 0 ? false : objs.push(item);
     });
 }
 
