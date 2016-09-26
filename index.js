@@ -28,7 +28,7 @@ mongoose.connect(Config.PathToMongoDB, (err) => {
 const con = mysql.createConnection(Config.MysqlConnection);
 
 //array of deck ids to migrate
-const DECKS_TO_MIGRATE = [27];
+const DECKS_TO_MIGRATE = [27, 33];
 
 function uniq(a) {
     //return a;
