@@ -8,12 +8,14 @@ let async = require('async');
 let UserSchema = require('./models/user.js');
 let DeckSchema = require('./models/deck.js');
 let SlideSchema = require('./models/slide.js');
+let CounterSchema = require('./models/counters.js');
 let Config = require('./config.js');
 
 
 const User = mongoose.model('Users', UserSchema);
 const Deck = mongoose.model('Decks', DeckSchema.DeckSchema);
 const Slide = mongoose.model('Slides', SlideSchema.SlideSchema);
+const Counter = mongoose.model('Counters', CounterSchema);
 // const DeckRevision = mongoose.model('DeckRevisions', DeckSchema.DeckRevision);
 
 mongoose.Promise = global.Promise;
@@ -98,6 +100,8 @@ con.connect((err) => {
             //********STEP5: migrate questions
             //try to empty questions collection; AFTER THAT
             //migrate questions, answers and user testsbf
+            ,drop_counters
+            ,createCounters
         ],
         (err) => {
             if (err) {
@@ -861,5 +865,93 @@ function add_usage_deck(callback){ //adds usage for all decks
                 } );
             }, cbEach);
         }, callback);
+    });
+}
+
+function drop_counters(callback) {
+    try {
+        mongoose.connection.db.dropCollection('counters');
+    } catch (err) {
+        callback(err);
+        return;
+    }
+    console.log('Counters collection was dropped');
+    callback();
+}
+
+function createCounters(callback0) {
+    con.query('select max(u.id)+1 as userid, max(d.id)+1 as deckid, max(s.id)+1 as slideid from users u, deck d, slide s;', (err, rows) => {
+        if (err) {
+            console.log(err);
+            callback0(err);
+            return;
+        } else {
+            async.series([
+                    (callback1) => {
+                        let counter1 = new Counter({
+                            _id: 'users',
+                            field: '_id',
+                            seq: rows[0].userid
+                        });
+                        counter1.save((err, c1) => {
+                            if (err) {
+                                console.log('Counter of users couldnt stored' + counter1 + ' error: ' + err);
+                                callback1(err, null);
+                                return;
+                            }
+                            if (c1._id) {
+                                console.log('Counter saved' + c1);
+                                callback1(null, c1);
+                                return;
+                            }
+                            console.log('saving counters - doing something strange!', err, counter1);
+                        });
+                    },
+                    (callback2) => {
+                        let counter2 = new Counter({
+                            _id: 'decks',
+                            field: '_id',
+                            seq: rows[0].deckid
+                        });
+                        counter2.save((err, c2) => {
+                            if (err) {
+                                console.log('Counter of users couldnt stored' + counter2 + ' error: ' + err);
+                                callback2(err, null);
+                                return;
+                            }
+                            if (c2._id) {
+                                console.log('Counter saved' + c2);
+                                callback2(null, c2);
+                                return;
+                            }
+                            console.log('saving counters - doing something strange!', err, counter2);
+                        });
+                    },
+                    (callback3) => {
+                        let counter3 = new Counter({
+                            _id: 'slides',
+                            field: '_id',
+                            seq: rows[0].slideid
+                        });
+                        counter3.save((err, c3) => {
+                            if (err) {
+                                console.log('Counter of users couldnt stored' + counter3 + ' error: ' + err);
+                                callback3(err, null);
+                                return;
+                            }
+                            if (c3._id) {
+                                console.log('Counter saved' + c3);
+                                callback3(null, c3);
+                                return;
+                            }
+                            console.log('saving counters - doing something strange!', err, counter3);
+                        });
+                    },
+                ],
+                // optional callback
+                (err, results) => {
+                    callback0();
+                });
+        }
     });
 }
