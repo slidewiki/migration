@@ -24,6 +24,16 @@ const ContentItem = {
     _id: Number
 };
 
+const Contributor = {
+    id: {
+        type: 'number',
+        required: true
+    },
+    count: {
+        type: 'number'
+    }
+};
+
 const DeckRevision = mongoose.Schema({
     id: Number,
     _id: Number,
@@ -146,6 +156,7 @@ const DeckSchema = mongoose.Schema({
     license: {
         type: String,
         enum: ['CC0', 'CC BY', 'CC BY-SA']
-    }
+    },
+    contributors: [Contributor],
 });
 module.exports = {DeckSchema, DeckRevision, ContentItem};

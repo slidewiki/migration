@@ -50,22 +50,44 @@ function uniq(a) {
     });
 }
 
-
 function format_contributors_slides(callback){
-
     Slide.find({}, (err, slides) => {
         async.each(slides, (slide, cbEach) => {
             if (slide.contributors.length){
-                slide.contributors = uniq(slide.contributors);
-                //slide.contributors = [];
-                //console.log(new_contributors);
-                async.eachOf(slide.contributors, (contributor, key, cbEach2) => {
-                    con.query('SELECT id, username FROM users WHERE id = ' + contributor, (err, username_row) => {
-                        slide.contributors[key] = {id: username_row[0].id, name: username_row[0].username};
-                        cbEach2();
-                    });
+                let formatted = [];
+                async.each(slide.contributors, (contributor, cbEach2) => {
+                    let found = formatted.find(x => x.id === contributor.id);
+                    if (found){
+                        found.count++;
+                    }else{
+                        formatted.push({id: contributor.id, count:1});
+                    }
+                    cbEach2();
                 }, () => {
+                    slide.contributors = formatted;
                     slide.save(cbEach);
+                });
+            }
+        }, callback);
+    });
+}
+
+function format_contributors_decks(callback){
+    Deck.find({}, (err, decks) => {
+        async.each(decks, (deck, cbEach) => {
+            if (deck.contributors.length){
+                let formatted = [];
+                async.each(deck.contributors, (contributor, cbEach2) => {
+                    let found = formatted.find(x => x.id === contributor.id);
+                    if (found){
+                        found.count++;
+                    }else{
+                        formatted.push({id: contributor.id, count:1});
+                    }
+                    cbEach2();
+                }, () => {
+                    deck.contributors = formatted;
+                    deck.save(cbEach);
                 });
             }
         }, callback);
@@ -84,7 +106,8 @@ con.connect((err) => {
             drop_decks, //try to empty deck collection; AFTER THAT
             migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
             add_usage,
-            format_contributors_slides
+            format_contributors_slides,
+            format_contributors_decks
             //add_translations_slides,
             //add_translations_decks
             //fill_infodecks//add decks into users.infodeck where necessary //as there are only two users with infodeck added, skip this
@@ -546,7 +569,7 @@ function process_revision(mysql_revision, callback){
             function saveRevisionToslide(cbAsync){
                 Slide.findByIdAndUpdate(
                     mysql_revision.slide,
-                    {$push: {'revisions': new_revision, 'contributors': new_revision.user}, 'active' : new_revision.id},
+                    {$push: {'revisions': new_revision, 'contributors': {id: new_revision.user}}, 'active' : new_revision.id},
                     {safe: false, upsert: false},
                     cbAsync
                 );
@@ -729,7 +752,7 @@ function process_revision(mysql_revision, callback){
             function saveRevisionToDeck(new_revision, cbAsync) {
                 Deck.findByIdAndUpdate(
                     mysql_revision.deck_id,
-                    {$push: {'revisions': new_revision} , 'active' : new_revision.id},
+                    {$push: {'revisions': new_revision, 'contributors': {id: new_revision.user}} , 'active' : new_revision.id},
                     {safe: false, upsert: false},
                     cbAsync
                 );

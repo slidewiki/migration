@@ -10,8 +10,8 @@ const Contributor = {
         type: 'number',
         required: true
     },
-    name: {
-        type: 'string'
+    count: {
+        type: 'number'
     }
 };
 const SlideRevision = mongoose.Schema({
@@ -96,14 +96,7 @@ const SlideSchema = mongoose.Schema({
         format: 'datetime'
     },
     revisions: [SlideRevision],
-    contributors: {
-        type: 'array',
-        items: {
-            oneOf: [
-                Contributor
-            ]
-        }
-    },
+    contributors: [Contributor],
     tags: {
         type: 'array',
         items: {
