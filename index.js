@@ -53,15 +53,14 @@ con.connect((err) => {
         return console.error('Error connecting to Database');
     }
     else { // here comes the migration
-        async.waterfall([
+        async.series([
             //drop_users, //try to empty users collection;
             //migrate_users, //migrate users
             drop_slides,
             drop_decks, //try to empty deck collection; AFTER THAT
             migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
-            add_usage,
-            format_contributors_slides,
-            format_contributors_decks,
+
+
             //add_translations_slides,
             //add_translations_decks
             //fill_infodecks//add decks into users.infodeck where necessary //as there are only two users with infodeck added, skip this
@@ -77,17 +76,19 @@ con.connect((err) => {
             //migrate questions, answers and user testsbf
             drop_counters,
             createCounters,
+            add_usage,
+            format_contributors_slides,
+            format_contributors_decks,
 
         ],
         (err) => {
             if (err) {
-                console.error(err);
                 mongoose.connection.close();
-                return;
+                return console.error(err);
             }
-            console.log('Migration is successful');
+
             mongoose.connection.close();
-            return;
+            return console.log('Migration is successful');
         });
     }
 });
@@ -155,14 +156,16 @@ function migrate_decks(callback){
 
 function drop_users(callback){
     try {
-        mongoose.connection.db.dropCollection('users');
+        mongoose.connection.db.dropCollection('users').then(() => {
+            console.log('Users collection is dropped');
+            callback();
+        });
     }
     catch(err) {
         callback(err);
         return;
     }
-    console.log('Users collection is dropped');
-    callback();
+
 }
 
 function drop_decks(callback){
@@ -175,6 +178,7 @@ function drop_decks(callback){
     }
     console.log('Decks collection is dropped');
     callback();
+
 }
 
 function drop_slides(callback){
@@ -187,6 +191,7 @@ function drop_slides(callback){
     }
     console.log('Slides collection is dropped');
     callback();
+
 }
 
 function format_contributors_slides(callback){
@@ -307,10 +312,7 @@ function process_deck(mysql_deck, callback){
         function addRevisions(mysql_revisions, cbAsync){
             async.each(mysql_revisions, process_revision, cbAsync);
         }
-    ], (err) => {
-        console.log('Deck ' + mysql_deck.id + ' processed');
-        callback(err);
-    });
+    ], callback);
 }
 
 
@@ -403,9 +405,7 @@ function process_slide(mysql_slide, callback){
         function addRevisions(mysql_revisions, cbAsync){
             async.each(mysql_revisions, process_revision, cbAsync);
         }
-    ], () => {
-        callback();
-    });
+    ], callback);
 }
 
 function buildTranslatedFrom(new_revision, revision_type, callback){
@@ -499,10 +499,8 @@ function collectUsage(new_revision, revision_type, callback){
                 'FROM deck_content LEFT JOIN deck_revision ON deck_revision.id = deck_content.deck_revision_id ' +
                 'WHERE deck_content.item_type = "deck" AND deck_content.item_id = ' + new_revision.mysql_id, (err, rows) => {
                     if (err) {
-
                         cbAsync(err, null);
                     } else {
-
                         cbAsync(null, rows);
                     }
                 });
@@ -542,17 +540,12 @@ function collectUsage(new_revision, revision_type, callback){
                             });
                         }
                     });
-                }, () => {
-                    cbAsync(null, new_revision);
-                } );
+                }, cbAsync);
             }else{
-                cbAsync(null, new_revision);
+                cbAsync();
             }
         }
-    ], (err, new_revision) => {
-        //console.log('ERRROR:' + err + 'NEW_REV: ' + new_revision);
-        callback(err, new_revision);
-    });
+    ], callback);
 }
 
 // function uniq(a) {
@@ -617,12 +610,7 @@ function process_revision(mysql_revision, callback){
                     cbAsync
                 );
             }
-        ], (err, new_revision) => {
-            if (err) callback(err);
-            //console.log('Deck revision saved with id ' + mysql_revision.id + ' for deck ' + mysql_revision.deck_id );
-            callback(null, new_revision);
-        });
-
+        ], callback);
     }else if (mysql_revision.deck_id){ //this is deck_revision
         if (mysql_revision.title === ''){
             mysql_revision.title = 'No title';
@@ -783,9 +771,7 @@ function process_revision(mysql_revision, callback){
                                 //     cbwaterfall();
                                 // }
                             }
-                        ], () => {
-                            cbEach();
-                        });
+                        ], cbEach);
                     }else{ //adding item failed
                         cbEach();
                     }
@@ -827,19 +813,11 @@ function process_revision(mysql_revision, callback){
                     cbAsync
                 );
             }
-        ], () => {callback(null, new_revision);
-
-                //console.log(new_revision);
-                //
-
-            //console.log('Deck revision saved with id ' + mysql_revision.id + ' for deck ' + mysql_revision.deck_id );
-        });
+        ], callback);
     } else{
-        callback(null, null);
+        callback();
     }
 }
-
-
 function process_user(mysql_user, callback){
     //console.log('Processing user ' + mysql_user.id);
     let new_user = new User({
