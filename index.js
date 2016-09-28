@@ -30,8 +30,9 @@ mongoose.connect(Config.PathToMongoDB, (err) => {
 const con = mysql.createConnection(Config.MysqlConnection);
 
 //array of deck ids to migrate
-const DECKS_TO_MIGRATE = [27, 33, 82];
-const DECKS_LIMIT = 500;
+const DECKS_TO_MIGRATE = [27, 33, 82]; //if the array is not empty, the further parameters are ignored
+const DECKS_LIMIT = 100;
+const DECKS_OFFSET = 100;
 
 
 // function uniq(a) {
@@ -54,12 +55,14 @@ con.connect((err) => {
     }
     else { // here comes the migration
         async.series([
-            //drop_users, //try to empty users collection;
-            //migrate_users, //migrate users
+            drop_users, //try to empty users collection;
+            migrate_users, //migrate users
             drop_slides,
             drop_decks, //try to empty deck collection; AFTER THAT
             migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
-
+            add_usage,
+            format_contributors_slides,
+            format_contributors_decks,
 
             //add_translations_slides,
             //add_translations_decks
@@ -76,9 +79,7 @@ con.connect((err) => {
             //migrate questions, answers and user testsbf
             drop_counters,
             createCounters,
-            add_usage,
-            format_contributors_slides,
-            format_contributors_decks,
+
 
         ],
         (err) => {
@@ -117,10 +118,12 @@ function migrate_decks(callback){
     }else {
         if (DECKS_LIMIT > 0) {
             query = '1' + ' LIMIT ' + DECKS_LIMIT; //get n first decks
+            if (DECKS_OFFSET > 0){
+                query+= ' OFFSET ' + DECKS_OFFSET;
+            }
         }else{
             query = '1'; //get all decks
         }
-
     }
 
     con.query('SELECT * FROM deck WHERE ' + query, (err, rows) => {
@@ -133,7 +136,11 @@ function migrate_decks(callback){
             let count = mysql_decks.length;
             async.each(mysql_decks, (deck, cbEach) => {
                 console.log('Adding deck ' + deck.id);
-                process_deck(deck, cbEach);
+                process_deck(deck, () => {
+                    count--;
+                    console.log(count + ' decks left in stack');
+                    cbEach();
+                });
             }, callback);
         }
     });
@@ -299,20 +306,24 @@ function process_deck(mysql_deck, callback){
             });
         },
         function countRevisions(mysql_revisions, cbAsync){ //adjusting revision ids to a new schema, adding language
-            async.eachOf(mysql_revisions, (revision, key, cbEachOf) => {
+            let processed = 0;
+            mysql_revisions.forEach((revision, key, array) => {
                 revision.mysql_id = revision.id;
                 revision.id = key+1;
                 revision._id = key+1;
                 revision.language = mysql_deck.language;
-                return cbEachOf();
-            }, () => {
-                cbAsync(null, mysql_revisions);
+                processed++;
+                if (processed === array.length){
+                    cbAsync(null, mysql_revisions);
+                }
             });
         },
         function addRevisions(mysql_revisions, cbAsync){
             async.each(mysql_revisions, process_revision, cbAsync);
         }
-    ], callback);
+    ], () => {
+        callback();
+    });
 }
 
 
@@ -392,20 +403,24 @@ function process_slide(mysql_slide, callback){
             });
         },
         function countRevisions(mysql_revisions, cbAsync){ //re-calculating the revisions and adding language
-            async.eachOf(mysql_revisions, (revision, key, cbEachOf) => {
+            let processed = 0;
+            mysql_revisions.forEach((revision, key, array) => {
                 revision.mysql_id = revision.id;
                 revision.id = key+1;
                 revision._id = key+1;
-                revision.language = mysql_slide.language; //will process it in the process_revision
-                return cbEachOf();
-            }, () => {
-                cbAsync(null, mysql_revisions);
+                revision.language = mysql_slide.language;
+                processed++;
+                if (processed === array.length){
+                    cbAsync(null, mysql_revisions);
+                }
             });
         },
         function addRevisions(mysql_revisions, cbAsync){
             async.each(mysql_revisions, process_revision, cbAsync);
         }
-    ], callback);
+    ], () => {
+        callback();
+    });
 }
 
 function buildTranslatedFrom(new_revision, revision_type, callback){
@@ -856,6 +871,7 @@ function process_user(mysql_user, callback){
 function add_usage(callback){ //adds usage looking in the whole decks
     Deck.find({}, function(err, decks) {
         console.log('Starting to add usage');
+        let count = decks.length;
         //console.log('FOUND ' + slides.length + 'slides++++++++++++++++++++++++++++++++++++++++++++++');
         async.each(decks, (deck, cbEach) => {
             //console.log('Adding usage for deck ' + deck.id);
@@ -870,7 +886,7 @@ function add_usage(callback){ //adds usage looking in the whole decks
                                 let item_revision = found.revisions.id(item.ref.revision);
                                 if (item_revision){
                                     item_revision.usage.push({id : deck._id , revision: revision.id});
-                                    console.log('Usage added for deck ' + found._id + '-' + item_revision.id);
+                                    //console.log('Usage added for deck ' + found._id + '-' + item_revision.id);
                                     found.save(cbEach3);
                                     //cbEach3();
                                 }else{
@@ -893,7 +909,7 @@ function add_usage(callback){ //adds usage looking in the whole decks
                                 let item_revision = found.revisions.id(item.ref.revision);
                                 if (item_revision){
                                     item_revision.usage.push({id : deck._id , revision: revision.id});
-                                    console.log('Usage added for slide ' + found._id + '-' + item_revision.id);
+                                    //console.log('Usage added for slide ' + found._id + '-' + item_revision.id);
                                     found.save(cbEach3);
                                     //cbEach3();
                                 }else{
@@ -909,8 +925,15 @@ function add_usage(callback){ //adds usage looking in the whole decks
                     }else{
                         cbEach3();
                     }
-                }, cbEach2);
-            }, cbEach);
+                }, () => {
+                    //console.log(count + ' decks without usage left in stack');
+                    cbEach2();
+                });
+            }, () => {
+                count--;
+                console.log(count + ' decks without usage left in stack');
+                cbEach();
+            });
         }, callback);
     });
 }
