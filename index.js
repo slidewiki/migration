@@ -30,9 +30,9 @@ mongoose.connect(Config.PathToMongoDB, (err) => {
 const con = mysql.createConnection(Config.MysqlConnection);
 
 //array of deck ids to migrate
-const DECKS_TO_MIGRATE = [27, 33, 82]; //if the array is not empty, the further parameters are ignored
-const DECKS_LIMIT = 100;
-const DECKS_OFFSET = 100;
+const DECKS_TO_MIGRATE = [27, 33, 584, 2838, 1265, 1112, 769, 805, 82, 220]; //if the array is not empty, the further parameters are ignored
+const DECKS_LIMIT = 500;
+const DECKS_OFFSET = 500;
 
 
 // function uniq(a) {
@@ -60,9 +60,9 @@ con.connect((err) => {
             drop_slides,
             drop_decks, //try to empty deck collection; AFTER THAT
             migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
-            add_usage,
-            format_contributors_slides,
-            format_contributors_decks,
+            add_usage, //do it once after all decks have been migrated
+            format_contributors_slides, //do it once after all decks have been migrated
+            format_contributors_decks, //do it once after all decks have been migrated
 
             //add_translations_slides,
             //add_translations_decks
@@ -79,8 +79,6 @@ con.connect((err) => {
             //migrate questions, answers and user testsbf
             drop_counters,
             createCounters,
-
-
         ],
         (err) => {
             if (err) {
@@ -312,6 +310,7 @@ function process_deck(mysql_deck, callback){
                 revision.id = key+1;
                 revision._id = key+1;
                 revision.language = mysql_deck.language;
+                if (revision.language === 'en') revision.language = 'gb';
                 processed++;
                 if (processed === array.length){
                     cbAsync(null, mysql_revisions);
@@ -581,9 +580,10 @@ function process_revision(mysql_revision, callback){
         let language_code_array = mysql_revision.language.split('-'); //as in old slidewiki language had a different format
         if (language_code_array.length){
             language_code = language_code_array[0];
+            if (language_code === 'en') language_code = 'gb';
         }
     }else{
-        language_code = 'en';
+        language_code = 'gb';
     }
 
     if (mysql_revision.slide){ //this is slide revision
@@ -887,6 +887,7 @@ function add_usage(callback){ //adds usage looking in the whole decks
                                 if (item_revision){
                                     item_revision.usage.push({id : deck._id , revision: revision.id});
                                     //console.log('Usage added for deck ' + found._id + '-' + item_revision.id);
+                                    console.log('Finished for a subdeck');
                                     found.save(cbEach3);
                                     //cbEach3();
                                 }else{
@@ -910,6 +911,7 @@ function add_usage(callback){ //adds usage looking in the whole decks
                                 if (item_revision){
                                     item_revision.usage.push({id : deck._id , revision: revision.id});
                                     //console.log('Usage added for slide ' + found._id + '-' + item_revision.id);
+                                    console.log('Finished for a slide');
                                     found.save(cbEach3);
                                     //cbEach3();
                                 }else{
@@ -918,15 +920,17 @@ function add_usage(callback){ //adds usage looking in the whole decks
                                     cbEach3();
                                 }
                             }else{
-                                console.log('not found slide with id ' + item.ref.id);
+                                console.log('Not found slide with id ' + item.ref.id);
                                 cbEach3();
                             }
                         });
                     }else{
+                        console.log('Item kind is neither slide or deck');
                         cbEach3();
                     }
                 }, () => {
                     //console.log(count + ' decks without usage left in stack');
+                    console.log('Finished for that revision');
                     cbEach2();
                 });
             }, () => {
@@ -934,7 +938,10 @@ function add_usage(callback){ //adds usage looking in the whole decks
                 console.log(count + ' decks without usage left in stack');
                 cbEach();
             });
-        }, callback);
+        },() => {
+            console.log('Adding usage is finished');
+            callback();
+        } );
     });
 }
 
