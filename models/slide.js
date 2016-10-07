@@ -6,7 +6,7 @@ const objectid = {
     type: Number
 };
 const Contributor = {
-    id: {
+    user: {
         type: 'number',
         required: true
     },
@@ -26,8 +26,7 @@ const SlideRevision = mongoose.Schema({
         type: 'string'
     },
     timestamp: {
-        type: 'string',
-        format: 'datetime'
+        type: Date,
     },
     content: {
         type: 'string'
@@ -92,8 +91,7 @@ const SlideSchema = mongoose.Schema({
         }
     },
     timestamp: {
-        type: 'string',
-        format: 'datetime'
+        type: Date
     },
     revisions: [SlideRevision],
     contributors: [Contributor],

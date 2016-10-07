@@ -25,7 +25,7 @@ const ContentItem = {
 };
 
 const Contributor = {
-    id: {
+    user: {
         type: 'number',
         required: true
     },
@@ -43,7 +43,7 @@ const DeckRevision = mongoose.Schema({
         required: true
     },
     timestamp: {
-        type: 'string'
+        type: Date
     },
     user: {
         type: Number
@@ -102,9 +102,7 @@ const DeckRevision = mongoose.Schema({
 const DeckSchema = mongoose.Schema({
     _id: object_id,
     timestamp: {
-        type: 'string',
-        format: 'datetime',
-        required: true
+        type: Date
     },
     user: {
         type: 'number',

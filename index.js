@@ -31,6 +31,7 @@ const con = mysql.createConnection(Config.MysqlConnection);
 
 //array of deck ids to migrate
 const DECKS_TO_MIGRATE = [27, 33, 584, 2838, 1265, 1112, 769, 805, 82, 220]; //if the array is not empty, the further parameters are ignored
+//const DECKS_TO_MIGRATE = [1110];
 const DECKS_LIMIT = 500;
 const DECKS_OFFSET = 500;
 
@@ -55,8 +56,8 @@ con.connect((err) => {
     }
     else { // here comes the migration
         async.series([
-            drop_users, //try to empty users collection;
-            migrate_users, //migrate users
+            // drop_users, //try to empty users collection;
+            // migrate_users, //migrate users
             drop_slides,
             drop_decks, //try to empty deck collection; AFTER THAT
             migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
@@ -207,11 +208,11 @@ function format_contributors_slides(callback){
             if (slide.contributors.length){
                 let formatted = [];
                 async.each(slide.contributors, (contributor, cbEach2) => {
-                    let found = formatted.find(x => x.id === contributor.id);
+                    let found = formatted.find(x => x.user === contributor.user);
                     if (found){
                         found.count++;
                     }else{
-                        formatted.push({id: contributor.id, count:1});
+                        formatted.push({user: contributor.user, count:1});
                     }
                     cbEach2();
                 }, () => {
@@ -237,11 +238,11 @@ function format_contributors_decks(callback){
             if (deck.contributors.length){
                 let formatted = [];
                 async.each(deck.contributors, (contributor, cbEach2) => {
-                    let found = formatted.find(x => x.id === contributor.id);
+                    let found = formatted.find(x => x.user === contributor.user);
                     if (found){
                         found.count++;
                     }else{
-                        formatted.push({id: contributor.id, count:1});
+                        formatted.push({user: contributor.user, count:1});
                     }
                     cbEach2();
                 }, () => {
@@ -262,9 +263,34 @@ function format_contributors_decks(callback){
 function process_deck(mysql_deck, callback){
     //console.log('Processing deck ' + mysql_deck.id);
     async.waterfall([
+        // function getDeckCounter(cbAsync){
+        //     Counter.findById('decks', (err, counter) => {
+        //         let max_counter = 0;
+        //         if (counter) {
+        //             max_counter = counter.seq;
+        //         }else{
+        //             let counter1 = new Counter({
+        //                 _id: 'decks',
+        //                 field: '_id',
+        //                 seq: 0
+        //             });
+        //             counter1.save((err, c1) => {
+        //                 if (err) {
+        //                     console.log('Counter of decks couldnt stored ' + counter1 + ' error: ' + err);
+        //                     cbAsync(err, max_counter);
+        //                 }
+        //                 if (c1._id) {
+        //                     console.log('Counter saved' + c1);
+        //                     cbAsync(null, max_counter);
+        //                 }
+        //             });
+        //         }
+        //     });
+        // },
         function saveDeck(cbAsync){
             let new_deck = new Deck({
                 _id: mysql_deck.id,
+                //mysql_id: mysql_deck.id,
                 timestamp: mysql_deck.timestamp,
                 user: mysql_deck.user_id,
                 description: '',
@@ -285,12 +311,13 @@ function process_deck(mysql_deck, callback){
                     }
                 }else{
                     //console.log('Deck saved with id: ' + new_deck._id);
+
                     cbAsync(null, new_deck);
                 }
             });
         },
         function getRevisions(new_deck, cbAsync){
-            con.query('SELECT * FROM deck_revision WHERE deck_id = ' + mysql_deck.id, (err,rows) => {
+            con.query('SELECT * FROM deck_revision WHERE deck_id = ' + mysql_deck.id + ' ORDER BY timestamp', (err,rows) => {
                 if(err) {
                     cbAsync(err);
                 }else{
@@ -313,12 +340,13 @@ function process_deck(mysql_deck, callback){
                 if (revision.language === 'en') revision.language = 'gb';
                 processed++;
                 if (processed === array.length){
+                    //console.log(mysql_revisions);
                     cbAsync(null, mysql_revisions);
                 }
             });
         },
         function addRevisions(mysql_revisions, cbAsync){
-            async.each(mysql_revisions, process_revision, cbAsync);
+            async.eachSeries(mysql_revisions, process_revision, cbAsync);
         }
     ], () => {
         callback();
@@ -393,7 +421,7 @@ function process_slide(mysql_slide, callback){
         },
 
         function getRevisions(new_slide, cbAsync){
-            con.query('SELECT * FROM slide_revision WHERE slide = ' + new_slide._id, (err,rows) => {
+            con.query('SELECT * FROM slide_revision WHERE slide = ' + new_slide._id + ' ORDER BY timestamp', (err,rows) => {
                 if(err) {
                     cbAsync(err);
                 }else{
@@ -415,7 +443,7 @@ function process_slide(mysql_slide, callback){
             });
         },
         function addRevisions(mysql_revisions, cbAsync){
-            async.each(mysql_revisions, process_revision, cbAsync);
+            async.eachSeries(mysql_revisions, process_revision, cbAsync);
         }
     ], () => {
         callback();
@@ -575,6 +603,7 @@ function collectUsage(new_revision, revision_type, callback){
 // }
 
 function process_revision(mysql_revision, callback){
+
     let language_code = '';
     if (mysql_revision.language){
         let language_code_array = mysql_revision.language.split('-'); //as in old slidewiki language had a different format
@@ -618,15 +647,19 @@ function process_revision(mysql_revision, callback){
             //     collectUsage(new_revision, 'slide', cbAsync);
             // },
             function saveRevisionToslide(cbAsync){
-                Slide.findByIdAndUpdate(
-                    mysql_revision.slide,
-                    {$push: {'revisions': new_revision, 'contributors': {id: new_revision.user}}, 'active' : new_revision.id},
-                    {safe: false, upsert: false},
-                    cbAsync
+                Slide.findById(
+                    mysql_revision.slide, (err, found) => {
+                        let key = new_revision.id-1;
+                        found.revisions[key] = new_revision;
+                        found.contributors.push({user: new_revision.user});
+                        found.active = new_revision.id;
+                        found.save(cbAsync);
+                    }
                 );
             }
         ], callback);
     }else if (mysql_revision.deck_id){ //this is deck_revision
+        console.log('Processing revision ' + mysql_revision.mysql_id);
         if (mysql_revision.title === ''){
             mysql_revision.title = 'No title';
         }
@@ -665,6 +698,7 @@ function process_revision(mysql_revision, callback){
             function addTags(cbAsync){
                 processTags(mysql_revision, (err, tags) => {
                     if (err) {
+                        console.log(err);
                         cbAsync();
                     }else{
                         new_revision.tags = tags;
@@ -675,8 +709,10 @@ function process_revision(mysql_revision, callback){
             function getRevisionContent(cbAsync){ //this should be a recursion
                 con.query('SELECT * FROM deck_content WHERE item_id > 0 AND deck_revision_id = ' + mysql_revision.mysql_id, (err, rows) => {
                     if (err){
+
                         cbAsync(err, null);
                     } else{
+                        //console.log('Revision content: ' + rows);
                         cbAsync(null, rows);
                     }
                 });
@@ -817,18 +853,24 @@ function process_revision(mysql_revision, callback){
                         cbEach();
                     }
                 }, () => {
+                    //console.log(new_revision);
                     cbAsync(null, new_revision);
                 });
             },
             function saveRevisionToDeck(new_revision, cbAsync) {
-                Deck.findByIdAndUpdate(
-                    mysql_revision.deck_id,
-                    {$push: {'revisions': new_revision, 'contributors': {id: new_revision.user}} , 'active' : new_revision.id},
-                    {safe: false, upsert: false},
-                    cbAsync
+                Deck.findById(
+                    mysql_revision.deck_id, (err, found) => {
+                        let key = new_revision.id-1;
+                        found.revisions[key] = new_revision;
+                        found.contributors.push({user: new_revision.user});
+                        found.active = new_revision.id;
+                        found.save(cbAsync);
+                    }
                 );
             }
-        ], callback);
+        ], () => {
+            callback();
+        });
     } else{
         callback();
     }
