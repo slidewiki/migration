@@ -56,8 +56,8 @@ con.connect((err) => {
     }
     else { // here comes the migration
         async.series([
-            // drop_users, //try to empty users collection;
-            // migrate_users, //migrate users
+            drop_users, //try to empty users collection;
+            migrate_users, //migrate users
             drop_slides,
             drop_decks, //try to empty deck collection; AFTER THAT
             migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
@@ -337,7 +337,7 @@ function process_deck(mysql_deck, callback){
                 revision.id = key+1;
                 revision._id = key+1;
                 revision.language = mysql_deck.language;
-                if (revision.language === 'en') revision.language = 'gb';
+                //if (revision.language === 'en') revision.language = 'gb';
                 processed++;
                 if (processed === array.length){
                     //console.log(mysql_revisions);
@@ -609,10 +609,10 @@ function process_revision(mysql_revision, callback){
         let language_code_array = mysql_revision.language.split('-'); //as in old slidewiki language had a different format
         if (language_code_array.length){
             language_code = language_code_array[0];
-            if (language_code === 'en') language_code = 'gb';
+            //if (language_code === 'en') language_code = 'gb';
         }
     }else{
-        language_code = 'gb';
+        language_code = 'en';
     }
 
     if (mysql_revision.slide){ //this is slide revision
@@ -888,7 +888,7 @@ function process_user(mysql_user, callback){
         forename: mysql_user.first_name,
         country: mysql_user.location,
         spokenLanguages: {},
-        frontendLanguage: 'en_EN', //will be default
+        frontendLanguage: 'en', //will be default
         picture: mysql_user.picture,
         interests: '',
         description: mysql_user.description,
