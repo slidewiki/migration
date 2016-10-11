@@ -43,7 +43,7 @@ const DeckRevision = mongoose.Schema({
         required: true
     },
     timestamp: {
-        type: Date
+        type: String
     },
     user: {
         type: Number
@@ -102,7 +102,7 @@ const DeckRevision = mongoose.Schema({
 const DeckSchema = mongoose.Schema({
     _id: object_id,
     timestamp: {
-        type: Date
+        type: String
     },
     user: {
         type: 'number',

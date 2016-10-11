@@ -30,8 +30,8 @@ mongoose.connect(Config.PathToMongoDB, (err) => {
 const con = mysql.createConnection(Config.MysqlConnection);
 
 //array of deck ids to migrate
-const DECKS_TO_MIGRATE = [27, 33, 584, 2838, 1265, 1112, 769, 805, 82, 220]; //if the array is not empty, the further parameters are ignored
-//const DECKS_TO_MIGRATE = [1110];
+//const DECKS_TO_MIGRATE = [27, 33, 584, 2838, 1265, 1112, 769, 805, 82, 220]; //if the array is not empty, the further parameters are ignored
+const DECKS_TO_MIGRATE = [1112];
 const DECKS_LIMIT = 500;
 const DECKS_OFFSET = 500;
 
@@ -291,11 +291,11 @@ function process_deck(mysql_deck, callback){
             let new_deck = new Deck({
                 _id: mysql_deck.id,
                 //mysql_id: mysql_deck.id,
-                timestamp: mysql_deck.timestamp,
+                timestamp: mysql_deck.timestamp.toISOString(),
                 user: mysql_deck.user_id,
                 description: '',
                 translation: [], //TODO
-                lastUpdate: Date.now, //TODO check all slides later in the code
+                lastUpdate: new Date().toISOString(), //TODO check all slides later in the code
                 revisions: [],
                 tags: [], //TODO collect from all revisions
                 active: null,
@@ -393,7 +393,7 @@ function process_slide(mysql_slide, callback){
         function saveSlide(cbAsync){
             let new_slide = new Slide({
                 _id: mysql_slide.id,
-                timestamp: mysql_slide.timestamp,
+                //timestamp: mysql_slide.timestamp.toISOString(),
                 user: mysql_slide.user_id,
                 description: '',
                 translation: [], //TODO
@@ -401,7 +401,7 @@ function process_slide(mysql_slide, callback){
                 tags: [],
                 active: '',
                 datasource: mysql_slide.description,
-                lastUpdate: Date.now,
+                lastUpdate: new Date().toISOString(),
                 revisions: []
             });
             new_slide.save((err, new_slide) => {
@@ -590,29 +590,22 @@ function collectUsage(new_revision, revision_type, callback){
     ], callback);
 }
 
-// function uniq(a) {
-//     var prims = {'boolean':{}, 'number':{}, 'string':{}}, objs = [];
-//
-//     return a.filter(function(item) {
-//         var type = typeof item;
-//         if(type in prims)
-//             return prims[type].hasOwnProperty(item) ? false : (prims[type][item] = true);
-//         else
-//             return objs.indexOf(item) >= 0 ? false : objs.push(item);
-//     });
-// }
+function convert_language(mysql_language) {
+    let array = mysql_language.split('-');
+    if (array.length){
+        if (array[0] === 'en') return 'en_GB';
+        return (array[0] + '_' + array[0].toUpperCase());
+    }else{
+        return ('en_GB');
+    }
+}
 
 function process_revision(mysql_revision, callback){
 
-    let language_code = '';
+    let language_code = 'en_GB';
+
     if (mysql_revision.language){
-        let language_code_array = mysql_revision.language.split('-'); //as in old slidewiki language had a different format
-        if (language_code_array.length){
-            language_code = language_code_array[0];
-            //if (language_code === 'en') language_code = 'gb';
-        }
-    }else{
-        language_code = 'en';
+        language_code = convert_language(mysql_revision.language);
     }
 
     if (mysql_revision.slide){ //this is slide revision
@@ -623,7 +616,7 @@ function process_revision(mysql_revision, callback){
             user: mysql_revision.user_id,
             content: process_content(mysql_revision.content).content,
             title: process_content(mysql_revision.content).title,
-            timestamp: mysql_revision.timestamp,
+            timestamp: mysql_revision.timestamp.toISOString(),
             speakernotes: mysql_revision.note,
             parent: {id: null, revision: mysql_revision.based_on}, //TODO
             language: language_code,
@@ -668,7 +661,7 @@ function process_revision(mysql_revision, callback){
             id: mysql_revision.id,
             mysql_id: mysql_revision.mysql_id,
             title: mysql_revision.title,
-            timestamp: mysql_revision.timestamp,
+            timestamp: mysql_revision.timestamp.toISOString(),
             user: mysql_revision.user_id,
             parent: {id: null, revision: mysql_revision.based_on}, //TODO
             popularity: 0,
@@ -888,7 +881,7 @@ function process_user(mysql_user, callback){
         forename: mysql_user.first_name,
         country: mysql_user.location,
         spokenLanguages: {},
-        frontendLanguage: 'en', //will be default
+        frontendLanguage: 'en_GB', //will be default
         picture: mysql_user.picture,
         interests: '',
         description: mysql_user.description,

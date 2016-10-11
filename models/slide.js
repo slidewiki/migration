@@ -26,7 +26,7 @@ const SlideRevision = mongoose.Schema({
         type: 'string'
     },
     timestamp: {
-        type: Date,
+        type: String,
     },
     content: {
         type: 'string'
@@ -91,7 +91,7 @@ const SlideSchema = mongoose.Schema({
         }
     },
     timestamp: {
-        type: Date
+        type: String
     },
     revisions: [SlideRevision],
     contributors: [Contributor],
