@@ -3,6 +3,7 @@
 let mysql = require('mysql');
 let mongoose = require('mongoose');
 let async = require('async');
+let he = require('he');
 
 
 let UserSchema = require('./models/user.js');
@@ -31,9 +32,11 @@ const con = mysql.createConnection(Config.MysqlConnection);
 
 //array of deck ids to migrate
 //const DECKS_TO_MIGRATE = [27, 33, 584, 2838, 1265, 1112, 769, 805, 82, 220]; //if the array is not empty, the further parameters are ignored
-const DECKS_TO_MIGRATE = [1112];
+const DECKS_TO_MIGRATE = [1110];
 const DECKS_LIMIT = 500;
 const DECKS_OFFSET = 500;
+const ImageURI = 'localhost'; //for creating thumbnails
+const ImagePort = 8882; //for creating thumbnails
 
 
 // function uniq(a) {
@@ -56,14 +59,14 @@ con.connect((err) => {
     }
     else { // here comes the migration
         async.series([
-            drop_users, //try to empty users collection;
-            migrate_users, //migrate users
-            drop_slides,
-            drop_decks, //try to empty deck collection; AFTER THAT
-            migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
-            add_usage, //do it once after all decks have been migrated
-            format_contributors_slides, //do it once after all decks have been migrated
-            format_contributors_decks, //do it once after all decks have been migrated
+            //drop_users, //try to empty users collection;
+            //migrate_users, //migrate users
+            //drop_slides,
+            //drop_decks, //try to empty deck collection; AFTER THAT
+            //migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
+            //add_usage, //do it once after all decks have been migrated
+            //format_contributors_slides, //do it once after all decks have been migrated
+            //format_contributors_decks, //do it once after all decks have been migrated
 
             //add_translations_slides,
             //add_translations_decks
@@ -78,8 +81,9 @@ con.connect((err) => {
             //********STEP5: migrate questions
             //try to empty questions collection; AFTER THAT
             //migrate questions, answers and user testsbf
-            drop_counters,
-            createCounters,
+            //drop_counters,
+            //createCounters,
+            createThumbs,
         ],
         (err) => {
             if (err) {
@@ -92,6 +96,18 @@ con.connect((err) => {
         });
     }
 });
+
+function createThumbs(callback) {
+    Slide.find({}, (err, slides) => {
+        //console.log('slides found: ' + slides.length);
+        async.eachSeries(slides, (slide, cbEach) => {
+            createThumbnail(slide.revisions[slide.revisions.length-1].content, slide._id.toString(), slide.user.toString());
+            cbEach();
+        }, () => {
+            callback();
+        });
+    });
+}
 
 function migrate_users(callback){
     con.query('SELECT * FROM users WHERE 1', (err, rows) => {
@@ -1015,6 +1031,50 @@ function drop_counters(callback) {
     }
     console.log('Counters collection was dropped');
     callback();
+}
+
+function createThumbnail(slideContent, slideId, user) {
+    let http = require('http');
+
+    let encodedContent = he.encode(slideContent, {allowUnsafeSymbols: true});
+
+    let jsonData = {
+        userID: String(user),
+        html: encodedContent,
+        filename: slideId
+    };
+
+    let data = JSON.stringify(jsonData);
+    console.log(data);
+
+    let options = {
+        host: ImageURI,
+        port: ImagePort,
+        path: '/thumbnail',
+        method: 'POST',
+        headers : {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'Content-Length': data.length
+        }
+    };
+    let req = http.request(options, (res) => {
+        //console.log('STATUS: ' + res.statusCode);
+        //console.log('HEADERS: ' + JSON.stringify(res.headers));
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => {
+        // //    console.log('Response: ', chunk);
+        // // let newDeckTreeNode = JSON.parse(chunk);
+        //
+        // // resolve(newDeckTreeNode);
+        });
+    });
+    req.on('error', (e) => {
+        console.log('problem with request thumb: ' + e.message);
+        // reject(e);
+    });
+    req.write(data);
+    req.end();
 }
 
 function createCounters(callback0) {
