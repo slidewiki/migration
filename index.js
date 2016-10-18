@@ -59,30 +59,29 @@ con.connect((err) => {
     }
     else { // here comes the migration
         async.series([
-            //drop_users, //try to empty users collection;
-            //migrate_users, //migrate users
-            //drop_slides,
-            //drop_decks, //try to empty deck collection; AFTER THAT
-            //migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
-            //add_usage, //do it once after all decks have been migrated
-            //format_contributors_slides, //do it once after all decks have been migrated
-            //format_contributors_decks, //do it once after all decks have been migrated
+            drop_users, //try to empty users collection;
+            migrate_users, //migrate users
+            drop_slides,
+            drop_decks, //try to empty deck collection; AFTER THAT
+            //clean_usage, //if this is a second run
+            //clean_contributors, //if this a second run
+            migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
+            add_usage, //do it once after all decks have been migrated
+            format_contributors_slides, //do it once after all decks have been migrated
+            format_contributors_decks, //do it once after all decks have been migrated
 
-            //add_translations_slides,
-            //add_translations_decks
-            //fill_infodecks//add decks into users.infodeck where necessary //as there are only two users with infodeck added, skip this
-            //drop_slides,//try to empty slides collection; AFTER THAT
-            //migrate_slides //slide_revision and collaborators
-
+            //add_translations_slides, //not implemented
+            //add_translations_decks //not implemented
+            //fill_infodecks//add decks into users.infodeck where necessary //not implemented
 
             //*********STEP4: migrate media
-            //try to empty media collection
-            //migrate media table and media files
+            //try to empty media collection //not implemented
+            //migrate media table and media files //not implemented
             //********STEP5: migrate questions
-            //try to empty questions collection; AFTER THAT
-            //migrate questions, answers and user testsbf
-            //drop_counters,
-            //createCounters,
+            //try to empty questions collection; AFTER THAT //not implemented
+            //migrate questions, answers and user testsbf //not implemented
+            drop_counters,
+            createCounters,
             createThumbs,
         ],
         (err) => {
