@@ -46,7 +46,8 @@ con.connect((err) => {
     }
     else { // here comes the migration
         async.series([
-            fix_timestamp_type
+            fix_timestamp_type_decks
+            ,fix_timestamp_type_slides
         ],
         (err) => {
             if (err) {
@@ -55,18 +56,46 @@ con.connect((err) => {
             }
 
             mongoose.connection.close();
-            return console.log('Migration is successful');
+            return console.log('The database is fixed');
         });
     }
 });
 
-function fix_timestamp_type(callback) {
+function fix_timestamp_type_decks(callback) {
+    console.log('Fixing the decks timestamps and lastUpdates');
     Deck.find({}, (err, decks) => {
         async.eachSeries(decks, (deck, cbEach) => {
-            console.log(deck.timestamp);
+
             //deck.timestamp = new String(deck.timestamp);
             deck.timestamp = new Date(deck.timestamp).toISOString();
-            deck.save(cbEach);
+            deck.lastUpdate = new Date().toISOString();
+            async.eachSeries(deck.revisions, (revision, cbEach2) => {
+                revision.timestamp = new Date(revision.timestamp).toISOString();
+                cbEach2();
+            },
+            () => {
+                deck.save(cbEach);
+            });
+        }, () => {
+            callback();
+        });
+    });
+}
+
+function fix_timestamp_type_slides(callback) {
+    console.log('Fixing the slides timestamps and lastUpdates');
+    Slide.find({}, (err, slides) => {
+        async.eachSeries(slides, (slide, cbEach) => {
+
+            //deck.timestamp = new String(deck.timestamp);
+            slide.lastUpdate = new Date().toISOString();
+            async.eachSeries(slide.revisions, (revision, cbEach2) => {
+                revision.timestamp = new Date(revision.timestamp).toISOString();
+                cbEach2();
+            },
+            () => {
+                slide.save(cbEach);
+            });
         }, () => {
             callback();
         });
