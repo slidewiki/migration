@@ -6,17 +6,18 @@ let async = require('async');
 let he = require('he');
 
 
-let UserSchema = require('./models/user.js');
-let DeckSchema = require('./models/deck.js');
-let SlideSchema = require('./models/slide.js');
-let CounterSchema = require('./models/counters.js');
+// let UserSchema = require('./models/user.js');
+// let DeckSchema = require('./models/deck.js');
+// let SlideSchema = require('./models/slide.js');
+// let CounterSchema = require('./models/counters.js');
 let Config = require('./config.js');
+let co = require('./common.js');
 
 
-const User = mongoose.model('Users', UserSchema);
-const Deck = mongoose.model('Decks', DeckSchema.DeckSchema);
-const Slide = mongoose.model('Slides', SlideSchema.SlideSchema);
-const Counter = mongoose.model('Counters', CounterSchema);
+const User = co.User;
+const Deck = co.Deck;
+const Slide = co.Slide;
+const Counter = co.Counter;
 // const DeckRevision = mongoose.model('DeckRevisions', DeckSchema.DeckRevision);
 
 mongoose.Promise = global.Promise;
@@ -61,14 +62,14 @@ con.connect((err) => {
         async.series([
             drop_users, //try to empty users collection;
             migrate_users, //migrate users
-            drop_slides,
-            drop_decks, //try to empty deck collection; AFTER THAT
+            //drop_slides,
+            //drop_decks, //try to empty deck collection; AFTER THAT
             //clean_usage, //if this is a second run
             //clean_contributors, //if this a second run
-            migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
-            add_usage, //do it once after all decks have been migrated
-            format_contributors_slides, //do it once after all decks have been migrated
-            format_contributors_decks, //do it once after all decks have been migrated
+            //migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
+            //add_usage, //do it once after all decks have been migrated
+            //format_contributors_slides, //do it once after all decks have been migrated
+            //format_contributors_decks, //do it once after all decks have been migrated
 
             //add_translations_slides, //not implemented
             //add_translations_decks //not implemented
@@ -82,7 +83,7 @@ con.connect((err) => {
             //migrate questions, answers and user testsbf //not implemented
             drop_counters,
             createCounters,
-            createThumbs,
+            //createThumbs,
         ],
         (err) => {
             if (err) {
@@ -114,8 +115,12 @@ function migrate_users(callback){
             callback(err);
             return;
         }
+        console.log('Starting migration of ' + rows.length + ' users');
         let mysql_users = rows;
-        async.each(mysql_users, process_user, callback);
+        async.each(mysql_users, process_user, () => {
+            console.log('Users are migrated');
+            callback();
+        });
     });
 }
 
@@ -183,7 +188,8 @@ function drop_users(callback){
         });
     }
     catch(err) {
-        callback(err);
+        console.log(err);
+        callback();
         return;
     }
 
