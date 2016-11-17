@@ -71,6 +71,9 @@ function fix_timestamp_type_decks(callback) {
             deck.lastUpdate = new Date().toISOString();
             async.eachSeries(deck.revisions, (revision, cbEach2) => {
                 revision.timestamp = new Date(revision.timestamp).toISOString();
+                for(let i = 0; i < revision.contentItems.length; i++){
+                    revision.contentItems[i].order = parseInt(revision.contentItems[i].order);
+                }
                 cbEach2();
             },
             () => {
