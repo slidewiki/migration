@@ -92,8 +92,11 @@ function fix_timestamp_type_slides(callback) {
 
             //deck.timestamp = new String(deck.timestamp);
             slide.lastUpdate = new Date().toISOString();
-            async.eachSeries(slide.revisions, (revision, cbEach2) => {
+            async.eachSeries(slide.revisions, (revision, cbEach2) => {                
                 revision.timestamp = new Date(revision.timestamp).toISOString();
+                if (revision.id === 1) {
+                    slide.timestamp = revision.timestamp;
+                }
                 cbEach2();
             },
             () => {

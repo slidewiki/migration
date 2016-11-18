@@ -33,7 +33,7 @@ const con = mysql.createConnection(Config.MysqlConnection);
 
 //array of deck ids to migrate
 //const DECKS_TO_MIGRATE = [27, 33, 584, 2838, 1265, 1112, 769, 805, 82, 220]; //if the array is not empty, the further parameters are ignored
-const DECKS_TO_MIGRATE = [1703];
+const DECKS_TO_MIGRATE = [27];
 const DECKS_LIMIT = 500;
 const DECKS_OFFSET = 500;
 const ImageURI = 'localhost'; //for creating thumbnails
@@ -60,8 +60,8 @@ con.connect((err) => {
     }
     else { // here comes the migration
         async.series([
-            drop_users, //try to empty users collection;
-            migrate_users, //migrate users
+            //drop_users, //try to empty users collection;
+            //migrate_users, //migrate users
             drop_slides,
             drop_decks, //try to empty deck collection; AFTER THAT
             //clean_usage, //if this is a second run
@@ -383,7 +383,19 @@ function processTags(revision, callback){
 }
 function process_slide(mysql_slide, callback){
     async.waterfall([
-        function saveSlide(cbAsync){
+
+
+        function getRevisions(cbAsync){
+            con.query('SELECT * FROM slide_revision WHERE slide = ' + mysql_slide.id + ' ORDER BY timestamp', (err,rows) => {
+                if(err) {
+                    cbAsync(err);
+                }else{
+                    mysql_slide.timestamp = rows[0].timestamp.toISOString();
+                    cbAsync(null, rows);
+                }
+            });
+        },
+        function saveSlide(rows, cbAsync){
             let new_slide = new Slide({
                 _id: mysql_slide.id,
                 //timestamp: mysql_slide.timestamp.toISOString(),
@@ -395,29 +407,20 @@ function process_slide(mysql_slide, callback){
                 active: '',
                 datasource: mysql_slide.description,
                 lastUpdate: new Date().toISOString(),
-                revisions: []
+                revisions: [],
+                timestamp: mysql_slide.timestamp
             });
-            new_slide.save((err, new_slide) => {
+            new_slide.save((err) => {
                 if (err){
                     if (err.code === 11000){ //slide has already been processed
                         //console.log('Slide exists with id' + mysql_slide.id);
                         callback();
                     }else{
                         console.log('Slide failed, id = ' + mysql_slide.id + ' error: ' + err);
-                        cbAsync(null, new_slide); //deck is not saved, but the migration continues
+                        callback(); //deck is not saved, but the migration continues
                     }
                 }else{
                     //console.log('Slide saved with id: ' + new_slide._id);
-                    cbAsync(null, new_slide);
-                }
-            });
-        },
-
-        function getRevisions(new_slide, cbAsync){
-            con.query('SELECT * FROM slide_revision WHERE slide = ' + new_slide._id + ' ORDER BY timestamp', (err,rows) => {
-                if(err) {
-                    cbAsync(err);
-                }else{
                     cbAsync(null, rows);
                 }
             });
