@@ -60,8 +60,8 @@ con.connect((err) => {
     }
     else { // here comes the migration
         async.series([
-            //drop_users, //try to empty users collection;
-            //migrate_users, //migrate users
+            drop_users, //try to empty users collection;
+            migrate_users, //migrate users
             drop_slides,
             drop_decks, //try to empty deck collection; AFTER THAT
             //clean_usage, //if this is a second run
