@@ -68,7 +68,10 @@ function fix_timestamp_type_decks(callback) {
 
             //deck.timestamp = new String(deck.timestamp);
             deck.timestamp = new Date(deck.timestamp).toISOString(); //fixing timestamp
-            deck.lastUpdate = new Date().toISOString(); //fixing last_update - set to now
+            if (deck.lastUpdate === 'function now() { [native code] }'){
+                deck.lastUpdate = new Date().toISOString(); //fixing last_update - set to now
+            }
+
             if (!deck.license) {
                 deck.license = 'CC BY-SA';
             }
@@ -94,7 +97,9 @@ function fix_timestamp_type_slides(callback) {
         async.eachSeries(slides, (slide, cbEach) => {
 
             //deck.timestamp = new String(deck.timestamp);
-            slide.lastUpdate = new Date().toISOString();
+            if (slide.lastUpdate === 'function now() { [native code] }'){
+                slide.lastUpdate = new Date().toISOString();
+            }
             if (!slide.license) {
                 slide.license = 'CC BY-SA';
             }
