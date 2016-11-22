@@ -47,10 +47,6 @@ const SlideRevision = mongoose.Schema({
         minimum: 0
     },
     comment: 'string',
-    license: {
-        type: 'string',
-        enum: ['CC0', 'CC BY', 'CC BY-SA']
-    },
     translated_from: {
         status: {
             type: 'string',
@@ -106,6 +102,10 @@ const SlideSchema = mongoose.Schema({
     lastUpdate: {
         type: 'string',
         format: 'datetime'
+    },
+    license: {
+        type: 'string',
+        enum: ['CC0', 'CC BY', 'CC BY-SA']
     }
 });
 

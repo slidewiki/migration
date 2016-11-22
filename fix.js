@@ -67,8 +67,11 @@ function fix_timestamp_type_decks(callback) {
         async.eachSeries(decks, (deck, cbEach) => {
 
             //deck.timestamp = new String(deck.timestamp);
-            deck.timestamp = new Date(deck.timestamp).toISOString();
-            deck.lastUpdate = new Date().toISOString();
+            deck.timestamp = new Date(deck.timestamp).toISOString(); //fixing timestamp
+            deck.lastUpdate = new Date().toISOString(); //fixing last_update - set to now
+            if (!deck.license) {
+                deck.license = 'CC BY-SA';
+            }
             async.eachSeries(deck.revisions, (revision, cbEach2) => {
                 revision.timestamp = new Date(revision.timestamp).toISOString();
                 for(let i = 0; i < revision.contentItems.length; i++){
@@ -92,7 +95,10 @@ function fix_timestamp_type_slides(callback) {
 
             //deck.timestamp = new String(deck.timestamp);
             slide.lastUpdate = new Date().toISOString();
-            async.eachSeries(slide.revisions, (revision, cbEach2) => {                
+            if (!slide.license) {
+                slide.license = 'CC BY-SA';
+            }
+            async.eachSeries(slide.revisions, (revision, cbEach2) => {
                 revision.timestamp = new Date(revision.timestamp).toISOString();
                 if (revision.id === 1) {
                     slide.timestamp = revision.timestamp;

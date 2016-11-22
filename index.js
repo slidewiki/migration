@@ -60,9 +60,10 @@ con.connect((err) => {
     }
     else { // here comes the migration
         async.series([
-            //drop_users, //try to empty users collection;
-            //migrate_users, //migrate users
+            drop_users, //try to empty users collection;
+            migrate_users, //migrate users
             drop_slides,
+
             drop_decks, //try to empty deck collection; AFTER THAT
             //clean_usage, //if this is a second run
             //clean_contributors, //if this a second run
@@ -279,7 +280,8 @@ function process_deck(mysql_deck, callback){
         revisions: [],
         tags: [], //TODO collect from all revisions
         active: null,
-        datasource: mysql_deck.description
+        datasource: mysql_deck.description,
+        license: 'CC BY-SA',
     });
     async.waterfall([
         function getRevisions(cbAsync){
@@ -408,7 +410,8 @@ function process_slide(mysql_slide, callback){
                 datasource: mysql_slide.description,
                 lastUpdate: new Date().toISOString(),
                 revisions: [],
-                timestamp: mysql_slide.timestamp
+                timestamp: mysql_slide.timestamp,
+                license: 'CC BY-SA'
             });
             new_slide.save((err) => {
                 if (err){
@@ -618,7 +621,6 @@ function process_revision(mysql_revision, callback){
             language: language_code,
             comment: mysql_revision.comment,
             tags: [],
-            license: 'CC BY-SA',
             //translated_from: {status: mysql_revision.translation_status, source: {id: null, revision: mysql_revision.translated_from_revision}, translator: {id: mysql_revision.translator_id, username: null}}, //TODO
             media: [], //TODO - if we store them here
             datasources: [],
@@ -651,7 +653,6 @@ function process_revision(mysql_revision, callback){
             user: mysql_revision.user_id,
             parent: {id: null, revision: mysql_revision.based_on}, //TODO
             popularity: 0,
-            license: 'CC BY-SA',
             isFeatured: mysql_revision.is_featured,
             priority: 0,
             visibility: mysql_revision.visibility,
