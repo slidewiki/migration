@@ -361,7 +361,7 @@ function process_content(html){
         title = 'No title';
     }
     //let re2 = /(<h2>)(.*?)(<\/h2>)(.*?)/ig;
-    let content = html.replace('<h2>' + title + '</h2>', ''); //cutting a title
+    let content = html.replace('<h2>' + title + '</h2>', '<h3>' + title + '</h3>'); //cutting a title
     content = content.replace(/.\/upload/g, 'http://slidewiki.org/upload'); //replace all occurences of media files with the correct absolute url
     return {content: content, title: title};
 }

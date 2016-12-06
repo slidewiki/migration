@@ -28,38 +28,48 @@ mongoose.connect(Config.PathToMongoDB, (err) => {
 console.log('fixing the database');
 
 
-//connecting to mysql
-const con = mysql.createConnection(Config.MysqlConnection);
-
-//array of deck ids to migrate
-//const DECKS_TO_MIGRATE = [27, 33, 584, 2838, 1265, 1112, 769, 805, 82, 220]; //if the array is not empty, the further parameters are ignored
-// const DECKS_TO_MIGRATE = [1110];
-// const DECKS_LIMIT = 500;
-// const DECKS_OFFSET = 500;
-// const ImageURI = 'localhost'; //for creating thumbnails
-// const ImagePort = 8882; //for creating thumbnails
-
-
-con.connect((err) => {
-    if(err){
-        return console.error('Error connecting to Database');
+async.series([
+    fix_timestamp_type_decks,
+    fix_timestamp_type_slides,
+    prepend_slide_title
+],
+(err) => {
+    if (err) {
+        mongoose.connection.close();
+        return console.error(err);
     }
-    else { // here comes the migration
-        async.series([
-            fix_timestamp_type_decks
-            ,fix_timestamp_type_slides
-        ],
-        (err) => {
-            if (err) {
-                mongoose.connection.close();
-                return console.error(err);
-            }
-
-            mongoose.connection.close();
-            return console.log('The database is fixed');
-        });
-    }
+    mongoose.connection.close();
+    return console.log('The database is fixed');
 });
+
+
+function prepend_slide_title(callback){
+    console.log('Prepending slide titles');
+    Slide.find({}, (err, slides) => {
+        async.eachSeries(slides, (slide, cbEach) => {
+            async.eachSeries(slide.revisions, (revision, cbEach2) => {
+                let content = revision.content;
+                let rePPTX = 'pptx2html';
+                let reAlreadyIn = '<h3>' + revision.title + '</h3>';
+
+                let matchPPTX, matchAlreadyIn = '';
+                matchAlreadyIn = content.match(reAlreadyIn);
+                matchPPTX = content.match(rePPTX);
+                if (!matchPPTX && !matchAlreadyIn){ //this is not imported slide and there is no title already prepended
+                    revision.content = '<h3>' + revision.title + '</h3>' + content;
+                    cbEach2();
+                }else{
+                    cbEach2();
+                }
+            }, () => {
+                slide.save(cbEach);
+            });
+
+        }, () => {
+            callback();
+        });
+    });
+}
 
 function fix_timestamp_type_decks(callback) {
     console.log('Fixing the decks timestamps and lastUpdates');
