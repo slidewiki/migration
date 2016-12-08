@@ -770,7 +770,7 @@ function process_revision(mysql_revision, callback){
                             },
                             function buildContentItem(revision_number, cbwaterfall){
                                 new_revision.contentItems.push({
-                                    order: row.position,
+                                    order: parseInt(row.position),
                                     kind: row.item_type,
                                     ref: {
                                         id: row.item,
