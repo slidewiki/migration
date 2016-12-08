@@ -8,7 +8,7 @@ const object_id = {
 const ContentItem = {
 
     order: {
-        type: 'number',
+        type: Number,
         required: true
     },
     kind: {

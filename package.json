@@ -18,6 +18,7 @@
     "grunt-contrib-watch": "^0.6.1",
     "grunt-execute": "^0.2.2",
     "he": "^1.1.0",
+    "htmlencode": "0.0.4",
     "http": "0.0.0",
     "mongoose": "^4.5.5",
     "mysql": "^2.11.1"

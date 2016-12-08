@@ -47,24 +47,32 @@ function prepend_slide_title(callback){
     console.log('Prepending slide titles');
     Slide.find({}, (err, slides) => {
         async.eachSeries(slides, (slide, cbEach) => {
-            async.eachSeries(slide.revisions, (revision, cbEach2) => {
-                let content = revision.content;
-                let rePPTX = 'pptx2html';
-                let reAlreadyIn = '<h3>' + revision.title + '</h3>';
+            if (slide.revisions[0].mysql_id){
+                async.eachSeries(slide.revisions, (revision, cbEach2) => {
+                    let content = revision.content;
+                    let rePPTX = 'pptx2html';
+                    //revision.title = revision.title.replace(/[|/+,]/g, '');
+                    let reAlreadyIn = '<h3>' + revision.title + '</h3>';
 
-                let matchPPTX, matchAlreadyIn = '';
-                matchAlreadyIn = content.match(reAlreadyIn);
-                matchPPTX = content.match(rePPTX);
-                if (!matchPPTX && !matchAlreadyIn){ //this is not imported slide and there is no title already prepended
-                    revision.content = '<h3>' + revision.title + '</h3>' + content;
-                    cbEach2();
-                }else{
-                    cbEach2();
-                }
-            }, () => {
-                slide.save(cbEach);
-            });
+                    let matchPPTX, matchAlreadyIn = '';
+                    try {
+                        matchAlreadyIn = content.match(reAlreadyIn);
+                        matchPPTX = content.match(rePPTX);
+                        if (!matchPPTX && !matchAlreadyIn){ //this is not imported slide and there is no title already prepended
+                            revision.content = '<h3>' + revision.title + '</h3>' + content;
 
+                        }
+                        cbEach2();
+                    } catch (error) {
+                        console.log('error of prepending title for slide ' + slide._id + '-' + revision.id);
+                        cbEach2();
+                    }
+                }, () => {
+                    slide.save(cbEach);
+                });
+            }else{
+                cbEach();
+            }
         }, () => {
             callback();
         });
@@ -87,8 +95,9 @@ function fix_timestamp_type_decks(callback) {
             }
             async.eachSeries(deck.revisions, (revision, cbEach2) => {
                 revision.timestamp = new Date(revision.timestamp).toISOString();
-                for(let i = 0; i < revision.contentItems.length; i++){
-                    revision.contentItems[i].order = parseInt(revision.contentItems[i].order);
+                for(let i = 0; i < revision.contentItems.length; i++){ //sorry for that
+                    revision.contentItems[i].order = parseInt(revision.contentItems[i].order)-5;
+                    revision.contentItems[i].order +=5;
                 }
                 cbEach2();
             },

@@ -25,5 +25,4 @@ module.exports = {
     Deck : mongoose.model('Decks', DeckSchema.DeckSchema),
     Slide : mongoose.model('Slides', SlideSchema.SlideSchema),
     Counter : mongoose.model('Counters', CounterSchema),
-
 };
