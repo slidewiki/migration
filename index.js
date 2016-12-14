@@ -70,8 +70,8 @@ con.connect((err) => {
             //drop_decks, //try to empty deck collection; AFTER THAT
             //clean_usage, //if this is a second run
             //clean_contributors, //if this a second run
-            //migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
-            //add_usage_handler, //do it once after all decks have been migrated
+            migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
+            add_usage_handler, //do it once after all decks have been migrated
             format_contributors_slides, //do it once after all decks have been migrated
             format_contributors_decks, //do it once after all decks have been migrated
 
