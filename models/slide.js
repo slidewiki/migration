@@ -14,6 +14,30 @@ const Contributor = {
         type: 'number'
     }
 };
+const dataSource = {
+    _id: Number,
+    type: {
+        type: String,
+        required: true
+    },
+    title: {
+        type: 'string',
+        required: true
+    },
+    url: {
+        type: 'string'
+    },
+    comment: {
+        type: 'string'
+    },
+    authors: {
+        type: 'string'
+    },
+    year: {
+        type: 'string'
+    }
+
+};
 const SlideRevision = mongoose.Schema({
     _id: Number,
     id: { //increment with every new revision
@@ -67,7 +91,7 @@ const SlideRevision = mongoose.Schema({
     },
     tags: ['string'],
     media: [objectid],
-    dataSources: ['string'],
+    dataSources: [dataSource],
     usage: [{id: Number, revision: Number}]
 });
 

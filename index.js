@@ -18,7 +18,9 @@ const User = co.User;
 const Deck = co.Deck;
 const Slide = co.Slide;
 const Counter = co.Counter;
-// const DeckRevision = mongoose.model('DeckRevisions', DeckSchema.DeckRevision);
+const Activity = co.Activity;
+const Comment = co.Comment;
+const Notification = co.Notification;
 
 mongoose.Promise = global.Promise;
 
@@ -32,8 +34,9 @@ mongoose.connect(Config.PathToMongoDB, (err) => {
 const con = mysql.createConnection(Config.MysqlConnection);
 
 //array of deck ids to migrate
-//const DECKS_TO_MIGRATE = [27, 33, 584, 2838, 1265, 1112, 769, 805, 82, 220]; //if the array is not empty, the further parameters are ignored
-const DECKS_TO_MIGRATE = [27];
+//const DECKS_TO_MIGRATE = [1422]; //if the array is not empty, the further parameters are ignored
+const DECKS_TO_MIGRATE = [584, 2926];
+//const DECKS_TO_MIGRATE = [584];
 const DECKS_LIMIT = 500;
 const DECKS_OFFSET = 500;
 const ImageURI = 'localhost'; //for creating thumbnails
@@ -60,15 +63,15 @@ con.connect((err) => {
     }
     else { // here comes the migration
         async.series([
-            drop_users, //try to empty users collection;
-            migrate_users, //migrate users
-            drop_slides,
+            //drop_users, //try to empty users collection;
+            //migrate_users, //migrate users
+            //drop_slides,
 
-            drop_decks, //try to empty deck collection; AFTER THAT
+            //drop_decks, //try to empty deck collection; AFTER THAT
             //clean_usage, //if this is a second run
             //clean_contributors, //if this a second run
-            migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
-            add_usage, //do it once after all decks have been migrated
+            //migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
+            //add_usage_handler, //do it once after all decks have been migrated
             format_contributors_slides, //do it once after all decks have been migrated
             format_contributors_decks, //do it once after all decks have been migrated
 
@@ -331,7 +334,15 @@ function process_deck(mysql_deck, callback){
                 new_deck.save((err, new_deck) => {
                     if (err){
                         if (err.code === 11000){ //deck has already been processed
-                            cbAsync(err, null);
+                            cbAsync(null, new_deck);
+                            // new_deck.save((err, new_deck) => {
+                            //     if (err) {
+                            //         console.log('Deck failed, id = ' + mysql_deck.id + ' error: ' + err);
+                            //         cbAsync(err, new_deck); //deck is not saved, but the migration continues
+                            //     }else{
+                            //         cbAsync(null, new_deck);
+                            //     }
+                            // });
                         }else{
                             console.log('Deck failed, id = ' + mysql_deck.id + ' error: ' + err);
                             cbAsync(err, new_deck); //deck is not saved, but the migration continues
@@ -383,10 +394,9 @@ function processTags(revision, callback){
         }
     });
 }
+
 function process_slide(mysql_slide, callback){
     async.waterfall([
-
-
         function getRevisions(cbAsync){
             con.query('SELECT * FROM slide_revision WHERE slide = ' + mysql_slide.id + ' ORDER BY timestamp', (err,rows) => {
                 if(err) {
@@ -415,11 +425,117 @@ function process_slide(mysql_slide, callback){
             });
             new_slide.save((err) => {
                 if (err){
-                    if (err.code === 11000){ //slide has already been processed
-                        //console.log('Slide exists with id' + mysql_slide.id);
-                        callback();
+                    if (err.code === 11000){ //slide already exists, ids conflict
+                        Slide.findOne({_id : new_slide._id}, (err, found) => {
+                            if (err) {
+                                console.log(err);
+                            }else{
+                                //console.log(found.revisions);
+                                if (!found) {
+                                    console.log('aaaaaaa');
+                                    console.log(new_slide._id);
+                                }else{
+                                    if (found.revisions.length){ //the slide was migrated from old slidewiki - it is the same slide
+                                        if (found.revisions[0].mysql_id){
+                                            callback();
+                                        } else{ //ids conflict
+                                            Counter.findOne({_id: 'slides'}, (err, slides_counter) => {
+                                                slides_counter.seq++;
+                                                slides_counter.save();
+                                                let new_slide_content = found.toObject();
+                                                delete new_slide_content._v;
+                                                new_slide_content._id = slides_counter.seq;
+                                                let new_old_slide = new Slide(new_slide_content);
+                                                new_old_slide.save((err) => {
+                                                    if (err) {
+                                                        console.log(err);
+                                                    } else {
+                                                        async.eachSeries(found.revisions, (revision, cbEach) => {
+                                                            async.eachSeries(revision.usage, (usage, cbEach2) => {
+                                                                Deck.findOne({_id: usage.id}, (err, deck) => {
+                                                                    async.eachSeries(deck.revisions[usage.revision-1].contentItems, (item, cbEach3) => {
+                                                                        if (item.kind === 'slide' && item.ref.id === new_slide._id){
+                                                                            item.ref.id = slides_counter.seq;
+                                                                            cbEach3();
+                                                                        }else{
+                                                                            cbEach3();
+                                                                        }
+                                                                    }, () => {
+                                                                        deck.save(cbEach2);
+                                                                    });
+                                                                });
+                                                            }, () => {
+                                                                cbEach();
+                                                            });
+                                                        }, () => {
+                                                            // async.Series([
+                                                            //     (callback) => {
+                                                            //         Activity.find({content_id: new_slide.id, content_kind: 'slide'}, (err, founds) => {
+                                                            //             async.eachSeries(founds, (found, cbEach) => {
+                                                            //                 found.content_id = new_old_slide._id;
+                                                            //                 found.save(cbEach);
+                                                            //             }, () => {
+                                                            //                 callback();
+                                                            //             });
+                                                            //         });
+                                                            //     },
+                                                            //     (callback) => {
+                                                            //         Comment.find({content_id: new_slide.id, content_kind: 'slide'}, (err, founds) => {
+                                                            //             async.eachSeries(founds, (found, cbEach) => {
+                                                            //                 found.content_id = new_old_slide._id;
+                                                            //                 found.save(cbEach);
+                                                            //             }, () => {
+                                                            //                 callback();
+                                                            //             });
+                                                            //         });
+                                                            //     },
+                                                            //     (callback) => {
+                                                            //         Notification.find({content_id: new_slide.id, content_kind: 'slide'}, (err, founds) => {
+                                                            //             async.eachSeries(founds, (found, cbEach) => {
+                                                            //                 found.content_id = new_old_slide._id;
+                                                            //                 found.save(cbEach);
+                                                            //             }, () => {
+                                                            //                 callback();
+                                                            //             });
+                                                            //         });
+                                                            //     }
+                                                            // ],
+                                                            //     () => {
+                                                                    Slide.remove({_id: new_slide.id}, (err, removed) => {
+                                                                        new_slide.save((err) => {
+                                                                            if (err) {
+                                                                                if (err.code === 11000){
+                                                                                    console.log('STILLLBAAAAD');
+                                                                                    //callback();
+                                                                                }else{
+                                                                                    console.log('Slide failed, id = ' + new_slide._id + ' error: ' + err);
+                                                                                    callback(err); //slide has been processed
+                                                                                }
+                                                                            }else{
+                                                                                cbAsync(null, rows);
+                                                                            }
+                                                                        });
+                                                                    });
+                                                                // }
+                                                            // );
+
+                                                        });
+                                                    }
+                                                });
+                                            });
+
+                                        }
+                                    }else{
+                                        callback();
+                                    }
+                                }
+
+                            }
+
+                        });
+
                     }else{
-                        console.log('Slide failed, id = ' + mysql_slide.id + ' error: ' + err);
+                        console.log('Slide failed very badly, id = ' + mysql_slide.id + ' error: ' + err);
                         callback(); //deck is not saved, but the migration continues
                     }
                 }else{
@@ -429,12 +545,21 @@ function process_slide(mysql_slide, callback){
             });
         },
         function countRevisions(mysql_revisions, cbAsync){ //re-calculating the revisions and adding language
+
             let processed = 0;
             mysql_revisions.forEach((revision, key, array) => {
                 revision.mysql_id = revision.id;
                 revision.id = key+1;
                 revision._id = key+1;
                 revision.language = mysql_slide.language;
+                revision.dataSources = [];
+                if (mysql_slide.description){
+                    if (mysql_slide.description.substr(0, 4) === 'http'){
+                        revision.dataSources.push({type: 'webpage', title: mysql_slide.description , url: mysql_slide.description, comment: '', authors: ''});
+                    }else{
+                        revision.dataSources.push({type: 'plaintext', title: mysql_slide.description, url: '', comment: '', authors: ''});
+                    }
+                }
                 processed++;
                 if (processed === array.length){
                     cbAsync(null, mysql_revisions);
@@ -623,18 +748,24 @@ function process_revision(mysql_revision, callback){
             tags: [],
             //translated_from: {status: mysql_revision.translation_status, source: {id: null, revision: mysql_revision.translated_from_revision}, translator: {id: mysql_revision.translator_id, username: null}}, //TODO
             media: [], //TODO - if we store them here
-            datasources: [],
+            dataSources: mysql_revision.dataSources,
             usage: [],
         };
         async.waterfall([
             function saveRevisionToslide(cbAsync){
                 Slide.findById(
                     mysql_revision.slide, (err, found) => {
-                        let key = new_revision.id-1;
-                        found.revisions[key] = new_revision;
-                        found.contributors.push({user: new_revision.user});
-                        found.active = new_revision.id;
-                        found.save(cbAsync);
+                        if (err) {console.log(err);}else{
+                            let key = new_revision.id-1;
+                            found.revisions[key] = new_revision;
+                            found.contributors.push({user: new_revision.user});
+                            found.active = new_revision.id;
+                            found.save( (err) => {
+                                if (err) {console.log(err); } else{
+                                    cbAsync();
+                                }
+                            });
+                        }
                     }
                 );
             }
@@ -867,9 +998,23 @@ function process_user(mysql_user, callback){
     });
 }
 
+function add_usage_handler(callback){
+    if (DECKS_TO_MIGRATE.length){
+        async.eachSeries(DECKS_TO_MIGRATE, (deck_id, cbEach) => {
+            console.log('Adding usage for deck ' + deck_id);
+            add_usage(deck_id, () => {
+                cbEach();
+            });
+        }, callback);
+    }else{
+        callback();
+    }
+}
 
-function add_usage(callback){ //adds usage looking in the whole decks
-    Deck.find({}, function(err, decks) {
+
+function add_usage(deck_id, callback){ //adds usage looking in the whole decks
+
+    Deck.find({_id: deck_id}, function(err, decks) {
         console.log('Starting to add usage');
         let count = decks.length;
         //console.log('FOUND ' + slides.length + 'slides++++++++++++++++++++++++++++++++++++++++++++++');
@@ -885,10 +1030,15 @@ function add_usage(callback){ //adds usage looking in the whole decks
                                 //console.log('found.revisions');
                                 let item_revision = found.revisions.id(item.ref.revision);
                                 if (item_revision){
-                                    item_revision.usage.push({id : deck._id , revision: revision.id});
+                                    let found_new = item_revision.usage.find(x => x.id === deck._id && x.revision === revision.id);
+                                    if (!found_new){
+                                        item_revision.usage.push({id : deck._id , revision: revision.id});
+                                    }
                                     //console.log('Usage added for deck ' + found._id + '-' + item_revision.id);
-                                    console.log('Finished for a subdeck');
-                                    found.save(cbEach3);
+                                    //console.log('Finished for a subdeck');
+                                    add_usage(item.ref.id, () => {
+                                        found.save(cbEach3);
+                                    });
                                     //cbEach3();
                                 }else{
                                     console.log('I could not find revision with id ' + item.ref.revision + ' for deck with id ' + item.ref.id);
@@ -906,12 +1056,15 @@ function add_usage(callback){ //adds usage looking in the whole decks
                         Slide.findById(item.ref.id, (err, found) => {
                             //if (err) console.log(err);
                             if (found){
-                                //console.log('found.revisions');
+                                //console.log('adding usage for ' + found);
                                 let item_revision = found.revisions.id(item.ref.revision);
                                 if (item_revision){
-                                    item_revision.usage.push({id : deck._id , revision: revision.id});
+                                    let found_new = item_revision.usage.find(x => x.id === deck._id && x.revision === revision.id);
+                                    if (!found_new){
+                                        item_revision.usage.push({id : deck._id , revision: revision.id});
+                                    }
                                     //console.log('Usage added for slide ' + found._id + '-' + item_revision.id);
-                                    console.log('Finished for a slide');
+                                    //console.log('Finished for a slide');
                                     found.save(cbEach3);
                                     //cbEach3();
                                 }else{
@@ -1038,7 +1191,7 @@ function createCounters(callback0) {
                         let counter1 = new Counter({
                             _id: 'users',
                             field: '_id',
-                            seq: rows[0].userid
+                            seq: rows[0].userid + 10000
                         });
                         counter1.save((err, c1) => {
                             if (err) {
@@ -1058,7 +1211,7 @@ function createCounters(callback0) {
                         let counter2 = new Counter({
                             _id: 'decks',
                             field: '_id',
-                            seq: rows[0].deckid
+                            seq: rows[0].deckid + 10000
                         });
                         counter2.save((err, c2) => {
                             if (err) {
@@ -1078,7 +1231,7 @@ function createCounters(callback0) {
                         let counter3 = new Counter({
                             _id: 'slides',
                             field: '_id',
-                            seq: rows[0].slideid
+                            seq: rows[0].slideid + 100000
                         });
                         counter3.save((err, c3) => {
                             if (err) {
