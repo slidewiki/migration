@@ -28,7 +28,7 @@ The `build.sh` (re-)builds the migration image. Before building it deletes the o
 
 ## The run.sh script
 
-The `run.sh` script runs docker-compose to set up all the container. Then it runs an interactie shell session of the migration image. When the migration image exits all containers are removed by docker-compose.
+The `run.sh` script runs docker-compose to set up all the container. Then it runs an interactive shell session of the migration image. When the migration image exits all containers are removed by docker-compose.
 
 ## Volumes
 
