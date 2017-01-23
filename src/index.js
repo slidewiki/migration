@@ -26,8 +26,11 @@ mongoose.Promise = global.Promise;
 
 //connecting to mongoDB
 mongoose.connect(Config.PathToMongoDB, (err) => {
-    if (err) throw err;
-    return;
+    if (err) {
+        console.error('Error connecting to MongoDB');
+        throw err;
+        return -1;
+   }
 });
 
 //connecting to mysql
@@ -59,9 +62,23 @@ const ImagePort = 8882; //for creating thumbnails
 
 con.connect((err) => {
     if(err){
-        return console.error('Error connecting to Database');
+        console.error('Error connecting to MySQL Database');
+        if (err) throw err;
+        return -2; 
     }
     else { // here comes the migration
+        con.query('set session sql_mode=\'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION\';', (err, rows) => {
+            if(err){
+                throw err;
+                return -3; 
+            }
+        });
+        con.query('set global sql_mode=\'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION\';', (err, rows) => {
+            if(err){
+                throw err;
+                return -3; 
+            }
+        });
         async.series([
             //drop_users, //try to empty users collection;
             //migrate_users, //migrate users

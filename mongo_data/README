@@ -1,0 +1,2 @@
+This directory is used to physically store the mongoDB data. The data is preserved even 
+when containers are destroyed. To reset the mongoDB you can simply clear this directory.

@@ -1,0 +1,3 @@
+Put an SQL dump (.sql) into this directory if you want to have that dump
+loaded when the MySQL container starts.
+

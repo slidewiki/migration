@@ -1,12 +1,15 @@
 FROM slidewiki/runtime:latest
 MAINTAINER Benjamin Wulff "benjamin.wulff.de@ieee.org"
 
-WORKDIR /nodeApp
+WORKDIR /app
 
 # ---------------- #
 #   Installation   #
 # ---------------- #
 
-ADD . /nodeApp
+ADD ./src /app
 RUN npm install grunt -g
-RUN npm install
+RUN npm install -g
+
+
+

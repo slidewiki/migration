@@ -1,21 +1,54 @@
+mongodb:
+  image: mongo
+  container_name: mongodb
+  volumes: 
+    - ./shared:/shared
+    - ./mongo_data:/data/db 
+  expose:
+    - "27017"
+
+
+mongo-express:
+  image: mongo-express
+  container_name: mongo-express
+  restart: on-failure:5
+  ports:
+    - "8081:8081"
+  links:
+    - mongodb
+  environment:
+    - ME_CONFIG_MONGODB_SERVER=mongodb
+    - ME_CONFIG_MONGODB_PORT=27017
+
+
 mysql:
   image: mysql
-  environment: MYSQL_ROOT_PASSWORD=linuxisgreat
-  ports:
-    - "3306"        # we might want to access this from the host
+  container_name: mysql
+  environment: 
+    - MYSQL_ROOT_PASSWORD=linuxisgreat
+    - MYSQL_DATABASE=slidewiki
+  volumes:
+    - ./sql_dump:/docker-entrypoint-initdb.d
+    - ./shared:/shared
   expose:
     - "3306"
 
+
 myadmin:
   image: phpmyadmin/phpmyadmin
+  container_name: phpmyadmin
   links:
-    - mysql
+    - mysql:db
   ports:
-    - "8081":"80"
+    - "8082:80"
 
-# actually started as an interactive session
-# migration:
-#  build: slidewiki/migration-db
-#  links:
-#   - database
-#    - mysql
+
+migration:
+  build: .
+  container_name: migration
+  volumes:
+    - ./src:/app
+    - ./shared:/shared
+  links:
+    - mongodb
+    - mysql
