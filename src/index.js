@@ -39,7 +39,7 @@ const con = mysql.createConnection(Config.MysqlConnection);
 //array of deck ids to migrate
 //const DECKS_TO_MIGRATE = [1422]; //if the array is not empty, the further parameters are ignored
 const DECKS_TO_MIGRATE = [584, 2926];
-//const DECKS_TO_MIGRATE = [584];
+//const DECKS_TO_MIGRATE = [2926];
 const DECKS_LIMIT = 500;
 const DECKS_OFFSET = 500;
 const ImageURI = 'localhost'; //for creating thumbnails
@@ -64,19 +64,19 @@ con.connect((err) => {
     if(err){
         console.error('Error connecting to MySQL Database');
         if (err) throw err;
-        return -2; 
+        return -2;
     }
     else { // here comes the migration
         con.query('set session sql_mode=\'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION\';', (err, rows) => {
             if(err){
                 throw err;
-                return -3; 
+                return -3;
             }
         });
         con.query('set global sql_mode=\'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION\';', (err, rows) => {
             if(err){
                 throw err;
-                return -3; 
+                return -3;
             }
         });
         async.series([
@@ -85,9 +85,10 @@ con.connect((err) => {
             //drop_slides,
 
             //drop_decks, //try to empty deck collection; AFTER THAT
-            //clean_usage, //if this is a second run
             //clean_contributors, //if this a second run
+            remove_usage,
             migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
+
             add_usage_handler, //do it once after all decks have been migrated
             format_contributors_slides, //do it once after all decks have been migrated
             format_contributors_decks, //do it once after all decks have been migrated
@@ -103,7 +104,7 @@ con.connect((err) => {
             //try to empty questions collection; AFTER THAT //not implemented
             //migrate questions, answers and user testsbf //not implemented
             drop_counters,
-            createCounters,
+            createCounters
             //createThumbs,
         ],
         (err) => {
@@ -246,7 +247,13 @@ function format_contributors_slides(callback){
                     slide.contributors = formatted;
                     count--;
                     console.log('Slides in stack: ' + count);
-                    slide.save(cbEach);
+                    slide.save( (err) => {
+                        if (err) {
+                            console.log(slide._id);
+                        }else{
+                            cbEach();
+                        }
+                    });
                 });
             }else{
                 count--;
@@ -1016,18 +1023,62 @@ function process_user(mysql_user, callback){
 }
 
 function add_usage_handler(callback){
-    if (DECKS_TO_MIGRATE.length){
-        async.eachSeries(DECKS_TO_MIGRATE, (deck_id, cbEach) => {
+    Deck.find({}, (err, decks) => {
+        async.eachSeries(decks, (deck_id, cbEach) => {
             console.log('Adding usage for deck ' + deck_id);
             add_usage(deck_id, () => {
                 cbEach();
             });
         }, callback);
-    }else{
-        callback();
-    }
+    });
 }
 
+function remove_usage(callback){
+    async.series([
+        (cbAsync) => {
+            Deck.find({}, (err, decks) => {
+                async.eachSeries(decks, (deck, cbEach) => {
+                    console.log('Starting deck');
+                    async.eachSeries(deck.revisions, (revision, cbEach2) => {
+                        revision.usage = [];
+                        cbEach2();
+                    }, () => {
+                        console.log('finished deck');
+                        deck.save( (err) => {
+                            if (err) {
+                                deck.save(cbEach);
+                            }else{
+                                cbEach();
+                            }
+                        });
+                    });
+                }, cbAsync);
+            });
+        },
+        (cbAsync) => {
+            Slide.find({}, (err, slides) => {
+                async.each(slides, (slide, cbEach) => {
+                    console.log('starting slide');
+                    async.eachSeries(slide.revisions, (revision, cbEach2) => {
+                        revision.usage = [];
+                        cbEach2();
+                    }, () => {
+                        console.log('finished slide');
+                        slide.save( (err) => {
+                            if (err) {
+                                slide.save(cbEach);
+                            }else{
+                                cbEach();
+                            }
+
+                        });
+                    });
+                }, cbAsync);
+            });
+        }
+    ], callback);
+
+}
 
 function add_usage(deck_id, callback){ //adds usage looking in the whole decks
 
@@ -1044,28 +1095,28 @@ function add_usage(deck_id, callback){ //adds usage looking in the whole decks
                         Deck.findById(item.ref.id, (err, found) => {
                             //if (err) console.log(err);
                             if (found){
-                                //console.log('found.revisions');
-                                let item_revision = found.revisions.id(item.ref.revision);
-                                if (item_revision){
-                                    let found_new = item_revision.usage.find(x => x.id === deck._id && x.revision === revision.id);
-                                    if (!found_new){
-                                        item_revision.usage.push({id : deck._id , revision: revision.id});
-                                    }
-                                    //console.log('Usage added for deck ' + found._id + '-' + item_revision.id);
-                                    //console.log('Finished for a subdeck');
-                                    add_usage(item.ref.id, () => {
+                                async.each(found.revisions, (item_revision, cbEach4) => {
+                                    if (item_revision.id === item.ref.revision){
+                                        let found_new = item_revision.usage.find(x => x.id === deck._id && x.revision === revision.id);
+                                        if (!found_new){
+                                            item_revision.usage.push({id : deck._id , revision: revision.id});
+                                        }
+                                        //console.log('Usage added for slide ' + found._id + '-' + item_revision.id);
+                                        //console.log('Finished for a slide');
                                         found.save(cbEach3);
-                                    });
-                                    //cbEach3();
-                                }else{
+                                        //cbEach3();
+                                    }else{
+                                        cbEach4();
+                                    }
+                                }, () => {
                                     console.log('I could not find revision with id ' + item.ref.revision + ' for deck with id ' + item.ref.id);
-                                    //console.log(found.revisions);
                                     console.log('Something is wrong with adding usage of deck '+ found.id + ' into deck ' + deck.id + '-' + revision.id);
-                                    cbEach3();
-                                }
+                                    console.log(found.revisions);
+                                });
+
                             }else{
-                                console.log('not found deck with id ' + item.ref.id);
-                                cbEach3();
+                                console.log('Not found slide with id ' + item.ref.id);
+                                //cbEach3();
                             }
                             // l
                         });
@@ -1073,30 +1124,33 @@ function add_usage(deck_id, callback){ //adds usage looking in the whole decks
                         Slide.findById(item.ref.id, (err, found) => {
                             //if (err) console.log(err);
                             if (found){
-                                //console.log('adding usage for ' + found);
-                                let item_revision = found.revisions.id(item.ref.revision);
-                                if (item_revision){
-                                    let found_new = item_revision.usage.find(x => x.id === deck._id && x.revision === revision.id);
-                                    if (!found_new){
-                                        item_revision.usage.push({id : deck._id , revision: revision.id});
+                                async.each(found.revisions, (item_revision, cbEach4) => {
+                                    if (item_revision.id === item.ref.revision){
+                                        let found_new = item_revision.usage.find(x => x.id === deck._id && x.revision === revision.id);
+                                        if (!found_new){
+                                            item_revision.usage.push({id : deck._id , revision: revision.id});
+                                        }
+                                        //console.log('Usage added for slide ' + found._id + '-' + item_revision.id);
+                                        //console.log('Finished for a slide');
+                                        found.save(cbEach3);
+                                        //cbEach3();
+                                    }else{
+                                        cbEach4();
                                     }
-                                    //console.log('Usage added for slide ' + found._id + '-' + item_revision.id);
-                                    //console.log('Finished for a slide');
-                                    found.save(cbEach3);
-                                    //cbEach3();
-                                }else{
+                                }, () => {
                                     console.log('I could not find revision with id ' + item.ref.revision + ' for slide with id ' + item.ref.id);
                                     console.log('Something is wrong with adding usage of slide '+ found.id + ' into deck ' + deck.id + '-' + revision.id);
-                                    cbEach3();
-                                }
+                                    console.log(found.revisions);
+                                });
+
                             }else{
                                 console.log('Not found slide with id ' + item.ref.id);
-                                cbEach3();
+                                //cbEach3();
                             }
                         });
                     }else{
                         console.log('Item kind is neither slide or deck');
-                        cbEach3();
+                        //cbEach3();
                     }
                 }, () => {
                     //console.log(count + ' decks without usage left in stack');
