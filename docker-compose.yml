@@ -4,6 +4,8 @@ mongodb:
   volumes: 
     - ./shared:/shared
     - ./mongo_data:/data/db 
+  ports:
+    - "27017:27017"
   expose:
     - "27017"
 
