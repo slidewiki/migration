@@ -45,34 +45,31 @@ async.series([
 
 function prepend_slide_title(callback){
     console.log('Prepending slide titles');
-    Slide.find({}, (err, slides) => {
-        async.eachSeries(slides, (slide, cbEach) => {
-            if (slide.revisions[0].mysql_id){
-                async.eachSeries(slide.revisions, (revision, cbEach2) => {
-                    let content = revision.content;
-                    let rePPTX = 'pptx2html';
-                    //revision.title = revision.title.replace(/[|/+,]/g, '');
-                    let reAlreadyIn = '<h3>' + revision.title + '</h3>';
+    Slide.find({'revisions.0.mysql_id':{$ne:null}}, (err, slides) => {
+        async.each(slides, (slide, cbEach) => {
+            async.each(slide.revisions, (revision, cbEach2) => {
+                let content = revision.content;
+                let rePPTX = 'pptx2html';
+                //revision.title = revision.title.replace(/[|/+,]/g, '');
+                let reAlreadyIn = '<h3>' + revision.title + '</h3>';
 
-                    let matchPPTX, matchAlreadyIn = '';
-                    try {
-                        matchAlreadyIn = content.match(reAlreadyIn);
-                        matchPPTX = content.match(rePPTX);
-                        if (!matchPPTX && !matchAlreadyIn){ //this is not imported slide and there is no title already prepended
-                            revision.content = '<h3>' + revision.title + '</h3>' + content;
+                let matchPPTX, matchAlreadyIn = '';
+                try {
+                    matchAlreadyIn = content.match(reAlreadyIn);
+                    matchPPTX = content.match(rePPTX);
+                    if (!matchPPTX && !matchAlreadyIn){ //this is not imported slide and there is no title already prepended
+                        revision.content = '<h3>' + revision.title + '</h3>' + content;
 
-                        }
-                        cbEach2();
-                    } catch (error) {
-                        console.log('error of prepending title for slide ' + slide._id + '-' + revision.id);
-                        cbEach2();
                     }
-                }, () => {
-                    slide.save(cbEach);
-                });
-            }else{
-                cbEach();
-            }
+                    cbEach2();
+                } catch (error) {
+                    console.log('error of prepending title for slide ' + slide._id + '-' + revision.id);
+                    cbEach2();
+                }
+            }, () => {
+                slide.save(cbEach);
+            });
+
         }, () => {
             callback();
         });
@@ -80,14 +77,15 @@ function prepend_slide_title(callback){
 }
 
 function fix_timestamp_type_decks(callback) {
-    console.log('Fixing the decks timestamps and lastUpdates');
+    console.log('Fixing the decks timestamps and lastUpdates NOW');
     Deck.find({}, (err, decks) => {
-        async.eachSeries(decks, (deck, cbEach) => {
-
-            //deck.timestamp = new String(deck.timestamp);
+        async.each(decks, (deck, cbEach) => {
             deck.timestamp = new Date(deck.timestamp).toISOString(); //fixing timestamp
+
             if (deck.lastUpdate === 'function now() { [native code] }'){
                 deck.lastUpdate = new Date().toISOString(); //fixing last_update - set to now
+            }else{
+                deck.lastUpdate = new Date(deck.lastUpdate).toISOString(); //fixing timestamp
             }
 
             if (!deck.license) {
@@ -113,7 +111,7 @@ function fix_timestamp_type_decks(callback) {
 function fix_timestamp_type_slides(callback) {
     console.log('Fixing the slides timestamps and lastUpdates');
     Slide.find({}, (err, slides) => {
-        async.eachSeries(slides, (slide, cbEach) => {
+        async.each(slides, (slide, cbEach) => {
 
             //deck.timestamp = new String(deck.timestamp);
             if (slide.lastUpdate === 'function now() { [native code] }'){
