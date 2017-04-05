@@ -1,9 +1,7 @@
 'use strict';
 
-let mysql = require('mysql');
 let mongoose = require('mongoose');
 let async = require('async');
-let he = require('he');
 
 
 
@@ -11,10 +9,8 @@ let Config = require('./config.js');
 let co = require('./common.js');
 
 
-const User = co.User;
 const Deck = co.Deck;
 const Slide = co.Slide;
-const Counter = co.Counter;
 // const DeckRevision = mongoose.model('DeckRevisions', DeckSchema.DeckRevision);
 
 mongoose.Promise = global.Promise;

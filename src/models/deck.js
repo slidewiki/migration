@@ -156,5 +156,11 @@ const DeckSchema = mongoose.Schema({
         enum: ['CC0', 'CC BY', 'CC BY-SA']
     },
     contributors: [Contributor],
+    editors: {
+        users: [{
+            id: object_id,
+            joined: String
+        }]
+    }
 });
 module.exports = {DeckSchema, DeckRevision, ContentItem};

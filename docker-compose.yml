@@ -1,9 +1,9 @@
 mongodb:
   image: mongo
   container_name: mongodb
-  volumes: 
+  volumes:
     - ./shared:/shared
-    - ./mongo_data:/data/db 
+    - ./mongo_data:/data/db
   ports:
     - "27017:27017"
   expose:
@@ -26,7 +26,7 @@ mongo-express:
 mysql:
   image: mysql
   container_name: mysql
-  environment: 
+  environment:
     - MYSQL_ROOT_PASSWORD=linuxisgreat
     - MYSQL_DATABASE=slidewiki
   volumes:

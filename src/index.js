@@ -38,8 +38,8 @@ const con = mysql.createConnection(Config.MysqlConnection);
 
 //array of deck ids to migrate
 //const DECKS_TO_MIGRATE = [1422]; //if the array is not empty, the further parameters are ignored
-const DECKS_TO_MIGRATE = [584, 2926];
-//const DECKS_TO_MIGRATE = [2926];
+//const DECKS_TO_MIGRATE = [584, 2926];
+const DECKS_TO_MIGRATE = [584];
 const DECKS_LIMIT = 500;
 const DECKS_OFFSET = 500;
 const ImageURI = 'localhost'; //for creating thumbnails
