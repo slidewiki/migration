@@ -37,6 +37,9 @@ function add_editors(callback){
     Deck.find({}, (err, decks) => {
         async.each(decks, (deck, cbEach) => {
             let users = [];
+            if (deck.editors) {
+                users = deck.editors.users;
+            }
             users.push({id: deck.user, joined: deck.timestamp});
             async.each(deck.revisions, (revision, cbEach2) => {
                 users.push({id: revision.user, joined: revision.timestamp});
@@ -44,9 +47,12 @@ function add_editors(callback){
             }, () => {
                 //sorting the array in order to define the joining dates
                 users.sort(function(a, b) {
-                    return parseFloat(a.joined) - parseFloat(b.joined);
+                    if (a.joined < b.joined)
+                        return -1;
+                    if (a.joined > b.joined)
+                        return 1;
+                    return 0;
                 });
-
                 //filtering the duplicates, leaving the ones with the earliest joining date
                 let flags = {};
                 let uniquelist = users.filter(function(entry) {
