@@ -158,6 +158,7 @@ const DeckSchema = mongoose.Schema({
     contributors: [Contributor],
     editors: {
         users: [{
+            _id:false,
             id: object_id,
             joined: String
         }]
