@@ -1084,7 +1084,6 @@ function add_usage(deck_id, callback){ //adds usage looking in the whole decks
 
     Deck.find({_id: deck_id}, function(err, decks) {
         console.log('Starting to add usage');
-        let count = decks.length;
         //console.log('FOUND ' + slides.length + 'slides++++++++++++++++++++++++++++++++++++++++++++++');
         async.eachSeries(decks, (deck, cbEach) => {
             //console.log('Adding usage for deck ' + deck.id);
@@ -1111,11 +1110,11 @@ function add_usage(deck_id, callback){ //adds usage looking in the whole decks
                                 }, () => {
                                     console.log('I could not find revision with id ' + item.ref.revision + ' for deck with id ' + item.ref.id);
                                     console.log('Something is wrong with adding usage of deck '+ found.id + ' into deck ' + deck.id + '-' + revision.id);
-                                    console.log(found.revisions);
+                                    //cbEach3();
                                 });
 
                             }else{
-                                console.log('Not found slide with id ' + item.ref.id);
+                                console.log('Not found deck with id ' + item.ref.id);
                                 //cbEach3();
                             }
                             // l
@@ -1158,8 +1157,7 @@ function add_usage(deck_id, callback){ //adds usage looking in the whole decks
                     cbEach2();
                 });
             }, () => {
-                count--;
-                console.log(count + ' decks without usage left in stack');
+
                 cbEach();
             });
         },() => {

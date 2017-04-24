@@ -39,8 +39,7 @@ const DeckRevision = mongoose.Schema({
     _id: Number,
     mysql_id: Number,
     title: {
-        type: 'string',
-        required: true
+        type: 'string'
     },
     timestamp: {
         type: String
@@ -153,7 +152,7 @@ const DeckSchema = mongoose.Schema({
     datasource: String,
     license: {
         type: String,
-        enum: ['CC0', 'CC BY', 'CC BY-SA']
+        enum: ['CC0', 'CC BY', 'CC BY-SA', null]
     },
     contributors: [Contributor],
     editors: {
