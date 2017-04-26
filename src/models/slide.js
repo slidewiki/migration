@@ -89,7 +89,7 @@ const SlideRevision = mongoose.Schema({
             username: 'string'
         }
     },
-    tags: ['string'],
+    tags: [{tagName:'string'}],
     media: [objectid],
     dataSources: [dataSource],
     usage: [{id: Number, revision: Number}]

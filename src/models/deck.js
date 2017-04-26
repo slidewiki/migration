@@ -54,7 +54,7 @@ const DeckRevision = mongoose.Schema({
     language: {
         type: 'string'
     },
-    theme: object_id,
+    theme: 'string',
     transition: object_id,
     comment: 'string',
     abstract: {
@@ -142,12 +142,7 @@ const DeckSchema = mongoose.Schema({
         format: 'datetime'
     },
     revisions: [DeckRevision], //array of deck revisions or array if their ids?
-    tags: {
-        type: 'array',
-        items: {
-            type: 'string'
-        }
-    },
+    tags: [{tagName:'string'}],
     active: Number,
     datasource: String,
     license: {

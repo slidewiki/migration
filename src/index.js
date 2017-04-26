@@ -33,6 +33,7 @@ mongoose.connect(Config.PathToMongoDB, (err) => {
    }
 });
 
+
 //connecting to mysql
 const con = mysql.createConnection(Config.MysqlConnection);
 
@@ -86,11 +87,11 @@ con.connect((err) => {
 
             //drop_decks, //try to empty deck collection; AFTER THAT
             //clean_contributors, //if this a second run
-            remove_usage,
-            migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
+            //remove_usage,
+            //migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
 
-            add_usage_handler, //do it once after all decks have been migrated
-            format_contributors_slides, //do it once after all decks have been migrated
+            //add_usage_handler, //do it once after all decks have been migrated
+            //format_contributors_slides, //do it once after all decks have been migrated
             format_contributors_decks, //do it once after all decks have been migrated
 
             //add_translations_slides, //not implemented
@@ -249,7 +250,7 @@ function format_contributors_slides(callback){
                     console.log('Slides in stack: ' + count);
                     slide.save( (err) => {
                         if (err) {
-                            console.log(slide._id);
+                            console.log(err);
                         }else{
                             cbEach();
                         }
@@ -283,7 +284,14 @@ function format_contributors_decks(callback){
                     deck.contributors = formatted;
                     count--;
                     console.log('Decks in stack: ' + count);
-                    deck.save(cbEach);
+                    deck.save( (err) => {
+                        if (err) {
+                            console.log(err);
+                            console.log('deck_id: ' + deck._id);
+                        }else{
+                            cbEach();
+                        }
+                    });
                 });
             }else{
                 count--;
