@@ -8,6 +8,7 @@ WORKDIR /app
 # ---------------- #
 
 ADD ./src /app
+ADD entrypoint.sh /entrypoint.sh
 RUN npm install grunt -g
 RUN npm install -g
 
