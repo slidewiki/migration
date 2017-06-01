@@ -87,10 +87,10 @@ con.connect((err) => {
 
             //drop_decks, //try to empty deck collection; AFTER THAT
             //clean_contributors, //if this a second run
-            remove_usage,
-            migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
+            //remove_usage,
+            //migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
 
-            add_usage_handler, //do it once after all decks have been migrated
+            //add_usage_handler, //do it once after all decks have been migrated
             format_contributors_slides, //do it once after all decks have been migrated
             format_contributors_decks, //do it once after all decks have been migrated
 
@@ -418,7 +418,7 @@ function processTags(revision, callback){
         }else{
             async.eachSeries(rows, (tag_row, cbEach) => {
                 //console.log(tag_row.tag);
-                tags.push(tag_row.tag);
+                tags.push({'tagName': tag_row.tag});
                 cbEach();
             }, () => {
                 callback(null, tags);

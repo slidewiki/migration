@@ -92,7 +92,7 @@ const DeckRevision = mongoose.Schema({
             username: 'string'
         }
     },
-    tags: [String], //array of strings
+    tags: [{tagName:'string'}], //array of strings
     contentItems: [ContentItem], //array of content items
     dataSources: [String], //array of strings?
     usage: [{id: 'number', revision: 'number'}] //where this revision is used

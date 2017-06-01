@@ -30,6 +30,7 @@ try{
 }
 catch (err) {
     console.log(err);
+    mongoose.connection.close();
 }
 
 
