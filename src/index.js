@@ -12,7 +12,7 @@ let he = require('he');
 // let CounterSchema = require('./models/counters.js');
 let Config = require('./config.js');
 let co = require('./common.js');
-
+let fix_user = require('./fix_user.js').migrate_usernames;
 
 const User = co.User;
 const Deck = co.Deck;
@@ -87,35 +87,32 @@ con.connect((err) => {
 
             //drop_decks, //try to empty deck collection; AFTER THAT
             //clean_contributors, //if this a second run
-            //remove_usage,
+            remove_usage,
             //migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
 
-            //add_usage_handler, //do it once after all decks have been migrated
+            add_usage_handler, //do it once after all decks have been migrated
             format_contributors_slides, //do it once after all decks have been migrated
             format_contributors_decks, //do it once after all decks have been migrated
 
             //add_translations_slides, //not implemented
             //add_translations_decks //not implemented
-            //fill_infodecks//add decks into users.infodeck where necessary //not implemented
 
-            //*********STEP4: migrate media
-            //try to empty media collection //not implemented
-            //migrate media table and media files //not implemented
-            //********STEP5: migrate questions
-            //try to empty questions collection; AFTER THAT //not implemented
-            //migrate questions, answers and user testsbf //not implemented
+
             drop_counters,
-            createCounters
+            createCounters,
+            fix_user
             //createThumbs,
         ],
         (err) => {
             if (err) {
                 mongoose.connection.close();
-                return console.error(err);
+                console.error(err);
+                process.exit(0);
             }
 
             mongoose.connection.close();
-            return console.log('Migration is successful');
+            console.log('Migration is successful');
+            process.exit(0);
         });
     }
 });

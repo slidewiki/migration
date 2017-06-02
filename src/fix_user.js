@@ -4,10 +4,10 @@ const helper = require('./lib_userservice/helper');
 
 console.log('Now fixing users ...');
 
-migrate_usernames(() => {
-    console.log('migrate_usernames executed - now stopping node');
-    process.exit(0);
-});
+// migrate_usernames(() => {
+//     console.log('migrate_usernames executed - now stopping node');
+//     process.exit(0);
+// });
 
 function migrate_usernames(done) {
     console.log('This will cleanup usernames and handle username duplication!');
@@ -115,3 +115,7 @@ function migrate_usernames(done) {
             return;
         });
 }
+
+module.exports = {
+    migrate_usernames
+};
