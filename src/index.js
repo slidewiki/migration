@@ -21,6 +21,7 @@ const Counter = co.Counter;
 const Activity = co.Activity;
 const Comment = co.Comment;
 const Notification = co.Notification;
+const RevisionsTable = co.RevisionsTable;
 
 mongoose.Promise = global.Promise;
 
@@ -38,11 +39,42 @@ mongoose.connect(Config.PathToMongoDB, (err) => {
 const con = mysql.createConnection(Config.MysqlConnection);
 
 //array of deck ids to migrate
-//const DECKS_TO_MIGRATE = [1422]; //if the array is not empty, the further parameters are ignored
+//const DECKS_TO_MIGRATE = [2838, 2846, 3841]; //if the array is not empty, the further parameters are ignored
 //const DECKS_TO_MIGRATE = [584, 2926];
-const DECKS_TO_MIGRATE = [584];
-const DECKS_LIMIT = 500;
-const DECKS_OFFSET = 500;
+const FILTER_SPAM_QUERY = "(SELECT deck_id FROM `deck_revision` WHERE `user_id` < 3891 AND (`user_id` NOT BETWEEN 1594 AND 1711) " +
+" AND (`user_id` NOT BETWEEN 1462 AND 1569) AND `user_id` NOT IN (1048, 1162, 1306, 1323, 1637, 1706, 1722, 1749, 1877," +
+" 1879, 1958, 2019, 2064, 2068, 2085, 2087, 2100, 2152, 2167, 2193, 2213, 2329, 2313, 2339, 2348, 2501, 2510, 2523, 2524, 2540," +
+" 2546, 2593, 2602, 2603, 2610, 2627, 2634, 2653, 2655, 2671, 2694, 2707, 2756, 2777, 2819, 2843, 2873, 2877, 2882, 2896, 2904, " +
+" 2926, 2942, 2973, 2976, 2980, 2985, 3021, 3062, 3063, 3064, 3076,  3091, 3101, 3102, 3103, 3124, 3181, 3190, 3200, 3213, 3224, " +
+" 3240, 3242, 3246, 3247, 3248, 3251, 3263, 3274, 3275, 3277, 3278, 3280, 3290, 3302, 3304, 3306, 3313,  3322, 3327,  3328, 3349, " +
+" 3370, 3387, 3408, 3412, 3416, 3420, 3423, 3431, 3433, 3437, 3442, 3448, 3453, 3459, 3461, 3464, 3490, 3492, 3495, 3497, 3500, 3513, " +
+" 3517, 3519, 3520, 3523, 3525, 3527, 3533, 3538, 3549, 3552, 3560, 3565, 3585, 3601, 3620, 3622, 3635, 3650, 3656, 3634, 3657, 3673, " +
+" 3675, 3676, 3684, 3686, 3721, 3723, 3727, 3742, 3744, 3750, 3764, 3765, 3770, 3775, 3728, 3798, 3781, 3786, 3788, 3789, 3795, 3808, " +
+" 3810, 3819, 3832,3833, 3835, 3838, 3839, 3823, 3841, 3844, 3848, 3847, 3850, 3852, 3854, 3859, 3867, 3868, 3873, 3874, 3876, 3877, " +
+" 3878, 3879  ) AND `title` NOT LIKE '%Google%' AND title NOT LIKE '%facebook%' AND `title` NOT LIKE '%password%' " +
+" AND `title` NOT LIKE '%Call%' AND `title` NOT LIKE '%phone%' AND `title` NOT LIKE '%+91%' AND `title` NOT LIKE '%1-888%' " +
+" AND `title` NOT LIKE '%+%' AND `title` NOT LIKE '%payPal%' AND `title` NOT LIKE '%Yahoo%' AND `title` NOT LIKE '%Quickbooks%' " +
+" AND `title` NOT LIKE '%Visa%' AND `title` NOT LIKE '%Mesothelioma%' AND `title` NOT LIKE '%Hotmail%' AND `title` NOT LIKE '%1800-721%' " +
+" AND `title` NOT LIKE '%0537%' AND `title` NOT LIKE '%1-8%' AND `title` NOT LIKE '%1844%' AND `title` NOT LIKE '%steering%' " +
+" AND `title` NOT LIKE '%Gmail%' AND `title` NOT LIKE '%Slide 1%' AND `title` NOT LIKE '%Outlook%' AND `title` NOT LIKE '%online photography%' " +
+" AND `title` NOT LIKE '%photography online%' AND `title` NOT LIKE '%bright circle%' AND `title` NOT LIKE '%Ayurveda%' " +
+" AND `title` NOT LIKE '%Quicken%' AND `title` NOT LIKE '%hotamil%' AND `title` NOT LIKE '%Homework help%' AND `title` NOT LIKE '%Black magic%'" +
+" AND `title` NOT LIKE '%tarot card%' AND `title` NOT LIKE '%taxi%' AND `title` NOT LIKE '%1800-8%' AND `title` NOT LIKE '%Vastu%' " +
+" AND `title` NOT LIKE '%971%' AND `title` NOT LIKE '%1800-%' AND `title` NOT LIKE '%877-%' AND `title` NOT LIKE '%mcAffee%' " +
+" AND `title` NOT LIKE '%escorts%' AND `title` NOT LIKE '%paintings online%' AND `title` NOT LIKE '%customer service%' " +
+" AND `title` NOT LIKE '%vashikaran%' AND `title` NOT LIKE '%support number%' AND `title` NOT LIKE '%1855%' AND `title` NOT LIKE '%buy online%' " +
+" AND `title` NOT LIKE '%Ayurvedic%' AND `title` NOT LIKE '%855%' AND `title` NOT LIKE '%astrology%' AND `title` NOT LIKE '%baba%' " +
+" AND `title` NOT LIKE '%917%' AND `title` NOT LIKE '%India%' AND `title` NOT LIKE '%Delhi%' AND `title` NOT LIKE '%laptop%' " +
+" AND `title` NOT LIKE '%dentist%' AND `title` NOT LIKE '%tantra%' AND `title` NOT LIKE '%love%' AND `title` NOT LIKE '%kaal%' " +
+" AND `title` NOT LIKE '%marriage%' AND `title` NOT LIKE '%mcafee%' AND `title` NOT LIKE '%quickbook%' AND `abstract` NOT LIKE '%quickbook%' " +
+" AND `abstract` NOT LIKE '%+%' AND `abstract` NOT LIKE '%1-8%' AND `abstract` NOT LIKE '%0800%' AND `title` NOT LIKE '%0800%' " +
+" AND `title` NOT LIKE '%astrolog%' AND `abstract` NOT LIKE '%astrolog%' AND `title` NOT LIKE '%http%' AND `title` NOT LIKE '%escort%' " +
+" AND `title` NOT LIKE '%bangalore%' AND `title` NOT LIKE '%chandigarth%' AND `title` NOT LIKE '%virgin%' AND `title` NOT LIKE '%844%' " +
+" AND `title` NOT LIKE '%24/7%' AND `abstract` NOT LIKE '%24/7%' AND `title` NOT LIKE '%0532%' AND `abstract` NOT LIKE '%0532%' GROUP BY deck_id)"
+
+const DECKS_TO_MIGRATE = [];
+const DECKS_LIMIT = 0;
+const DECKS_OFFSET = 0;
 const ImageURI = 'localhost'; //for creating thumbnails
 const ImagePort = 8882; //for creating thumbnails
 
@@ -81,22 +113,21 @@ con.connect((err) => {
             }
         });
         async.series([
-            //drop_users, //try to empty users collection;
-            //migrate_users, //migrate users
-            //drop_slides,
+            drop_users, //try to empty users collection;
+            migrate_users, //migrate users
+            drop_slides,
 
-            //drop_decks, //try to empty deck collection; AFTER THAT
+            drop_decks, //try to empty deck collection; AFTER THAT
             //clean_contributors, //if this a second run
-            remove_usage,
-            //migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
+            //remove_usage,
+            migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
 
             add_usage_handler, //do it once after all decks have been migrated
-            format_contributors_slides, //do it once after all decks have been migrated
-            format_contributors_decks, //do it once after all decks have been migrated
+            //format_contributors_slides, //do it once after all decks have been migrated
+            //format_contributors_decks, //do it once after all decks have been migrated
 
-            //add_translations_slides, //not implemented
-            //add_translations_decks //not implemented
-
+            fix_origin_slides, //build origins using new revision numbers instead of old ones
+            fix_origin_decks, //build origins using new revision numbers instead of old ones
 
             drop_counters,
             createCounters,
@@ -157,12 +188,12 @@ function migrate_decks(callback){
         });
     }else {
         if (DECKS_LIMIT > 0) {
-            query = '1' + ' LIMIT ' + DECKS_LIMIT; //get n first decks
+            query = 'id IN' + FILTER_SPAM_QUERY + ' LIMIT ' + DECKS_LIMIT; //get n first decks
             if (DECKS_OFFSET > 0){
                 query+= ' OFFSET ' + DECKS_OFFSET;
             }
         }else{
-            query = '1'; //get all decks
+            query = 'id IN' + FILTER_SPAM_QUERY; //get all decks
         }
     }
 
@@ -176,10 +207,18 @@ function migrate_decks(callback){
             let count = mysql_decks.length;
             async.eachSeries(mysql_decks, (deck, cbEach) => {
                 console.log('Adding deck ' + deck.id);
-                process_deck(deck, () => {
-                    count--;
-                    console.log(count + ' decks left in stack');
-                    cbEach();
+                process_deck(deck, (err) => {
+                    if (err) {
+                        console.log('Error in migrating deck ' + deck.id);
+                        count--;
+                        console.log(count + ' decks left in stack');
+                        cbEach();
+                    }else{
+                        count--;
+                        console.log(count + ' decks left in stack');
+                        cbEach();
+                    }
+
                 });
             }, callback);
         }
@@ -224,6 +263,83 @@ function drop_slides(callback){
     console.log('Slides collection is dropped');
     callback();
 
+}
+
+function fix_origin_decks(callback){
+    console.log('Changing decks origins');
+    let count = 0;
+    Deck.find({'origin': {$exists:true}}, (err, decks) => {
+        count = decks.length;
+        console.log('left in stack: ' + count);
+        async.each(decks, (this_deck, cbEach) => {
+            if (this_deck.origin.mysql_revision){
+                Deck.findById(this_deck.origin.id, (err, origin_deck) => {
+                    async.each(origin_deck.revisions, (revision, cbEach2) => {
+                        if (revision.mysql_id === this_deck.origin.mysql_revision) {
+                            this_deck.origin.revision = revision.id;
+                            this_deck.origin.user = revision.user;
+                            this_deck.save(cbEach2);
+                        } else{
+                            cbEach2();
+                        }
+                    }, () => {
+                        count--;
+                        console.log('left in stack: ' + count);
+                        cbEach();
+                    });
+                });
+            }else{
+                count--;
+                console.log('left in stack: ' + count);
+                cbEach();
+            }
+        }, () => {
+            console.log('Decks origins are fixed') ;
+            callback();
+        });
+    });
+}
+
+function fix_origin_slides(callback){
+    console.log('Changing slides origins');
+    let count = 0;
+    Slide.find({'origin': {$exists:true}}, (err, slides) => {
+        count = slides.length;
+        console.log('left in stack: ' + count);
+        async.each(slides, (this_slide, cbEach) => {
+            if (this_slide.origin.mysql_revision){
+                Slide.findById(this_slide.origin.id, (err, origin_slide) => {
+                    if (origin_slide){
+                        async.each(origin_slide.revisions, (revision, cbEach2) => {
+                            if (revision.mysql_id === this_slide.origin.mysql_revision) {
+                                this_slide.origin.revision = revision.id;
+                                this_slide.origin.user = revision.user;
+                                this_slide.save(cbEach2);
+                            } else{
+                                cbEach2();
+                            }
+                        }, () => {
+                            count--;
+                            console.log('left in stack: ' + count);
+                            cbEach();
+                        });
+                    }else{
+                        console.log(this_slide);
+                        //this_slide.origin = {};
+                        //this_slide.save(cbEach);
+                    }
+
+                });
+            }else{
+                count--;
+                console.log('left in stack: ' + count);
+                cbEach();
+            }
+        }, () => {
+            console.log('Slides origins are fixed') ;
+            callback();
+        });
+    });
 }
 
 function format_contributors_slides(callback){
@@ -299,15 +415,43 @@ function format_contributors_decks(callback){
     });
 }
 
+function buildOrigin(mysql_deck, callback){
+    let origin = {};
+    if (mysql_deck.translated_from){
+        console.log('im inside');
+        con.query('SELECT * FROM deck_revision WHERE id =' + mysql_deck.translated_from_revision, (err, rows) => {
+            if(err) {
+                console.log(err);
+                return err;
+            }else{
+                console.log(rows);
+                origin = {'id' : mysql_deck.translated_from};
+                // origin.mysql_revision = mysql_deck.translated_from_revision;
+                // origin.revision = 1;
+                // origin.user = rows[0].user_id;
+                // origin.title = rows[0].title;
+                console.log('ORIGIN FROM FUNCTION: ' +JSON.stringify(origin));
+                callback(origin);
+            }
+
+        });
+    }else{
+        callback(origin);
+    }
+
+}
+
 function process_deck(mysql_deck, callback){
     //console.log('Processing deck ' + mysql_deck.id);
+
     let new_deck = new Deck({
         _id: mysql_deck.id,
         //mysql_id: mysql_deck.id,
         timestamp: mysql_deck.timestamp.toISOString(),
         user: mysql_deck.user_id,
         description: '',
-        translation: [], //TODO
+        translations: [], //TODO
+        origin: {},
         lastUpdate: new Date().toISOString(), //TODO check all slides later in the code
         revisions: [],
         tags: [], //TODO collect from all revisions
@@ -316,7 +460,29 @@ function process_deck(mysql_deck, callback){
         license: 'CC BY-SA',
     });
     async.waterfall([
+        function buildOrigin(cbAsync){
+            if (mysql_deck.translated_from){
+                console.log('Adding origin');
+                con.query('SELECT * FROM deck_revision WHERE id =' + mysql_deck.translated_from_revision, (err, rows) => {
+                    if(err) {
+                        console.log(err);
+                        cbAsync(err);
+                    }else {
+                        new_deck.origin.id = mysql_deck.translated_from;
+                        new_deck.origin.mysql_revision = mysql_deck.translated_from_revision;
+                        new_deck.origin.revision = 1;
+                        new_deck.origin.user = rows[0].user_id;
+                        new_deck.origin.title = rows[0].title;
+                        //console.log('ORIGIN FROM FUNCTION: ' +JSON.stringify(new_deck.origin));
+                        cbAsync();
+                    }
+                });
+            }else{
+                cbAsync();
+            }
+        },
         function getRevisions(cbAsync){
+            console.log('Getting revisions');
             //con.query('SELECT * FROM deck_revision WHERE deck_id = ' + mysql_deck.id + ' ORDER BY timestamp DESC ', (err,rows) => {
             con.query('SELECT * FROM ' +
             '(SELECT * FROM deck_revision ' +
@@ -331,7 +497,40 @@ function process_deck(mysql_deck, callback){
                 }
             });
         },
+        function buildRevisionTable(mysql_revisions, cbAsync){
+            console.log('Filling revisions table');
+            let processed = 0;
+            if (!mysql_revisions.length){
+                callback(true);
+            }else{
+                mysql_revisions.forEach((revision, key, array) => {
+                    let revisions_row = new RevisionsTable({
+                        _id: revision.id,
+                        deck_id: mysql_deck.id,
+                        user_id: revision.user_id
+                    });
+                    revisions_row.save((err) => {
+                        if (!err || err.code === 11000) {
+                            if (err){
+                                console.log('The revision ' + revision.id +' is already there');
+                            }
+                            processed++;
+                            if (processed === array.length){
+                                cbAsync(null, mysql_revisions);
+                            }
+                        }else{
+                            console.log(err);
+
+                        }
+                    });
+
+                });
+            }
+
+
+        },
         function countRevisions(mysql_revisions, cbAsync){ //adjusting revision ids to a new schema, adding language
+            console.log('Count revisions');
             let processed = 0;
             mysql_revisions.forEach((revision, key, array) => {
                 revision.mysql_id = revision.id;
@@ -346,6 +545,7 @@ function process_deck(mysql_deck, callback){
             });
         },
         function addRevisions(mysql_revisions, cbAsync){
+            console.log('Adding revisions');
             async.eachSeries(mysql_revisions, ((mysql_revision, cbEach) => {
                 process_revision(mysql_revision, (err, new_revision) => {
                     if (err) {
@@ -377,6 +577,7 @@ function process_deck(mysql_deck, callback){
                             cbAsync(err, new_deck); //deck is not saved, but the migration continues
                         }
                     }else{
+                        console.log('Success');
                         cbAsync(null, new_deck);
                     }
                 });
@@ -425,7 +626,41 @@ function processTags(revision, callback){
 }
 
 function process_slide(mysql_slide, callback){
+    mysql_slide.origin = {};
     async.waterfall([
+        function buildOrigin(cbAsync){
+            if (mysql_slide.translated_from){
+                con.query('SELECT * FROM slide_revision WHERE id =' + mysql_slide.translated_from_revision, (err, rows) => {
+                    if(err) {
+                        console.log(err);
+                        //cbAsync(err);
+                    }else if (rows.length){
+                        mysql_slide.origin.id = mysql_slide.translated_from;
+                        mysql_slide.origin.mysql_revision = mysql_slide.translated_from_revision;
+                        mysql_slide.origin.revision = 1;
+                        mysql_slide.origin.user = rows[0].user_id;
+                        mysql_slide.origin.title = rows[0].title;
+                        cbAsync();
+                    }else{
+                        con.query('SELECT * FROM slide_revision WHERE slide=' + mysql_slide.translated_from, (err, rows) => {
+                            if (err){
+                                console.log(err);
+                            }else if (rows.length){
+                                mysql_slide.origin.id = rows[0].id;
+                                mysql_slide.origin.revision = 1;
+                                mysql_slide.origin.user = rows[0].user_id;
+                                mysql_slide.origin.title = rows[0].title;
+                                cbAsync();
+                            }else {
+                                cbAsync();
+                            }
+                        })
+                    }
+                });
+            }else{
+                cbAsync();
+            }
+        },
         function getRevisions(cbAsync){
             con.query('SELECT * FROM slide_revision WHERE slide = ' + mysql_slide.id + ' ORDER BY timestamp', (err,rows) => {
                 if(err) {
@@ -450,7 +685,8 @@ function process_slide(mysql_slide, callback){
                 lastUpdate: new Date().toISOString(),
                 revisions: [],
                 timestamp: mysql_slide.timestamp,
-                license: 'CC BY-SA'
+                license: 'CC BY-SA',
+                origin: mysql_slide.origin
             });
             new_slide.save((err) => {
                 if (err){

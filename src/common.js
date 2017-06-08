@@ -11,6 +11,8 @@ let CounterSchema = require('./models/counters.js');
 let ActivitySchema = require('./models/activity.js');
 let CommentSchema = require('./models/comment.js');
 let NotificationSchema = require('./models/notification.js');
+let RevisionsTableSchema = require('./models/revisionsTable.js');
+
 
 
 let Config = require('./config.js');
@@ -30,5 +32,6 @@ module.exports = {
     Counter : mongoose.model('Counters', CounterSchema),
     Activity : mongoose.model('Activities', ActivitySchema),
     Comment: mongoose.model('Comments', CommentSchema),
-    Notification: mongoose.model('Notifications', NotificationSchema)
+    Notification: mongoose.model('Notifications', NotificationSchema),
+    RevisionsTable: mongoose.model('OldRevisions', RevisionsTableSchema)
 };

@@ -110,6 +110,13 @@ const SlideSchema = mongoose.Schema({
             deck_id: objectid
         }
     },
+    origin: {
+        id: objectid,
+        revision: Number,
+        mysql_revision: Number,
+        user: Number,
+        title: String
+    },
     timestamp: {
         type: String
     },

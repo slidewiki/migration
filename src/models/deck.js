@@ -74,24 +74,6 @@ const DeckRevision = mongoose.Schema({
     visibility: {
         type: 'boolean'
     },
-    translated_from: {
-        status: {
-            type: 'string',
-            enum: ['original', 'google', 'revised', null]
-        },
-        source: {
-            id: {
-                type: 'number'
-            },
-            revision: {
-                type: 'number'
-            }
-        },
-        translator: {
-            id: 'number',
-            username: 'string'
-        }
-    },
     tags: [{tagName:'string'}], //array of strings
     contentItems: [ContentItem], //array of content items
     dataSources: [String], //array of strings?
@@ -119,24 +101,31 @@ const DeckSchema = mongoose.Schema({
             deck_id: object_id
         }
     },
-    translated_from: {
-        status: {
-            type: 'string',
-            enum: ['original', 'google', 'revised', null]
-        },
-        source: {
-            id: {
-                type: 'number'
-            },
-            revision: {
-                type: 'number'
-            }
-        },
-        translator: {
-            id: 'number',
-            username: 'string'
-        }
+    origin: {
+        id: object_id,
+        revision: Number,
+        mysql_revision: Number,
+        user: Number,
+        title: String
     },
+    // translated_from: {
+    //     status: {
+    //         type: 'string',
+    //         enum: ['original', 'google', 'revised', null]
+    //     },
+    //     source: {
+    //         id: {
+    //             type: 'number'
+    //         },
+    //         revision: {
+    //             type: 'number'
+    //         }
+    //     },
+    //     translator: {
+    //         id: 'number',
+    //         username: 'string'
+    //     }
+    // },
     lastUpdate: {
         type: 'string',
         format: 'datetime'
