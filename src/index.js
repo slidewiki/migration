@@ -113,25 +113,26 @@ con.connect((err) => {
             }
         });
         async.series([
-            drop_users, //try to empty users collection;
+            //drop_users, //try to empty users collection;
             migrate_users, //migrate users
-            drop_slides,
+            //drop_slides,
 
-            drop_decks, //try to empty deck collection; AFTER THAT
+            //drop_decks, //try to empty deck collection; AFTER THAT
             //clean_contributors, //if this a second run
             //remove_usage,
             migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
 
             add_usage_handler, //do it once after all decks have been migrated
-            //format_contributors_slides, //do it once after all decks have been migrated
-            //format_contributors_decks, //do it once after all decks have been migrated
+            format_contributors_slides, //do it once after all decks have been migrated
+            format_contributors_decks, //do it once after all decks have been migrated
 
             fix_origin_slides, //build origins using new revision numbers instead of old ones
             fix_origin_decks, //build origins using new revision numbers instead of old ones
 
             drop_counters,
             createCounters,
-            fix_user
+            fix_user,
+            //adjust_model_decks //in development
             //createThumbs,
         ],
         (err) => {
@@ -176,6 +177,21 @@ function migrate_users(callback){
     });
 }
 
+// function adjust_model_decks(callback){
+//     Deck.find({}, (err, decks)=> {
+//         async.each(decks, (deck, cbEach) => {
+//             deck.accessLevel = null;
+//             if (deck.origin){
+//                 deck.translated_from = {'status': 'google'};
+//             }else{
+//                 deck.translated_from = {'status': 'original'};
+//             }
+//             deck.save(cbEach);
+//         }, callback);
+//
+//     });
+// }
+
 function migrate_decks(callback){
     let query = '';
     if (DECKS_TO_MIGRATE.length){
@@ -192,9 +208,12 @@ function migrate_decks(callback){
             if (DECKS_OFFSET > 0){
                 query+= ' OFFSET ' + DECKS_OFFSET;
             }
+        }else if (DECKS_OFFSET > 0){
+            query = 'id IN' + FILTER_SPAM_QUERY + ' LIMIT 10000 OFFSET ' + DECKS_OFFSET;
         }else{
             query = 'id IN' + FILTER_SPAM_QUERY; //get all decks
         }
+
     }
 
     con.query('SELECT * FROM deck WHERE ' + query, (err, rows) => {
@@ -206,20 +225,25 @@ function migrate_decks(callback){
             let mysql_decks = rows;
             let count = mysql_decks.length;
             async.eachSeries(mysql_decks, (deck, cbEach) => {
-                console.log('Adding deck ' + deck.id);
-                process_deck(deck, (err) => {
-                    if (err) {
-                        console.log('Error in migrating deck ' + deck.id);
-                        count--;
-                        console.log(count + ' decks left in stack');
-                        cbEach();
-                    }else{
-                        count--;
-                        console.log(count + ' decks left in stack');
-                        cbEach();
-                    }
-
-                });
+                if (deck.id < 1701 || deck.id > 1725){ //filtering big meaningless decks
+                    console.log('Adding deck ' + deck.id);
+                    process_deck(deck, (err) => {
+                        if (err) {
+                            console.log('Error in migrating deck ' + deck.id);
+                            count--;
+                            console.log(count + ' decks left in stack');
+                            cbEach();
+                        }else{
+                            count--;
+                            console.log(count + ' decks left in stack');
+                            cbEach();
+                        }
+                    });
+                }else{
+                    count--;
+                    console.log(count + ' decks left in stack');
+                    cbEach();
+                }
             }, callback);
         }
     });
@@ -274,19 +298,26 @@ function fix_origin_decks(callback){
         async.each(decks, (this_deck, cbEach) => {
             if (this_deck.origin.mysql_revision){
                 Deck.findById(this_deck.origin.id, (err, origin_deck) => {
-                    async.each(origin_deck.revisions, (revision, cbEach2) => {
-                        if (revision.mysql_id === this_deck.origin.mysql_revision) {
-                            this_deck.origin.revision = revision.id;
-                            this_deck.origin.user = revision.user;
-                            this_deck.save(cbEach2);
-                        } else{
-                            cbEach2();
-                        }
-                    }, () => {
+                    if (origin_deck){
+                        async.each(origin_deck.revisions, (revision, cbEach2) => {
+                            if (revision.mysql_id === this_deck.origin.mysql_revision) {
+                                this_deck.origin.revision = revision.id;
+                                this_deck.origin.user = revision.user;
+                                this_deck.save(cbEach2);
+                            } else{
+                                cbEach2();
+                            }
+                        }, () => {
+                            count--;
+                            console.log('left in stack: ' + count);
+                            cbEach();
+                        });
+                    }else{
+                        this_deck.origin = {};
                         count--;
-                        console.log('left in stack: ' + count);
                         cbEach();
-                    });
+                    }
+
                 });
             }else{
                 count--;
@@ -324,9 +355,9 @@ function fix_origin_slides(callback){
                             cbEach();
                         });
                     }else{
-                        console.log(this_slide);
-                        //this_slide.origin = {};
-                        //this_slide.save(cbEach);
+                        //console.log(this_slide);
+                        this_slide.origin = {};
+                        this_slide.save(cbEach);
                     }
 
                 });
@@ -443,7 +474,10 @@ function buildOrigin(mysql_deck, callback){
 
 function process_deck(mysql_deck, callback){
     //console.log('Processing deck ' + mysql_deck.id);
-
+    if (mysql_deck.id >= 1701 && mysql_deck.id <=1725){
+        console.log('aaaaaaaaaaaaaaaaaaaaaaa');
+        callback();
+    }
     let new_deck = new Deck({
         _id: mysql_deck.id,
         //mysql_id: mysql_deck.id,
@@ -839,144 +873,144 @@ function process_slide(mysql_slide, callback){
     });
 }
 
-function buildTranslatedFrom(new_revision, revision_type, callback){
-    let source = {
-        id: null,
-        revision: null
-    };
-    if (new_revision.translated_from.source.revision){
-        console.log('ADD TRANSLATION FOR SLIDE ' + new_revision.id);
-        if (revision_type === 'slide'){
-            con.query('SELECT slide.* FROM slide INNER JOIN slide_revision ON slide_revision.slide = slide.id WHERE slide_revision.id = ' + new_revision.translated_from.source.revision, (err, rows) => {
-                if (err) {
-                    callback(err, source);
-                } else {
-                    if (rows.length){
-                        async.waterfall([
-                            function addSlideTranslatedFrom(cbAsync){
-                                process_slide(rows[0], cbAsync);
-                            },
-                            function AddRevisionToSource(cbAsync){
-                                source.id = rows[0].id;
-                                Slide.findOne({'_id' : rows[0].id}, (err, found) => {
-                                    let revision = found.revisions.id(new_revision.translated_from.source.revision);
-                                    if (revision){
-                                        source.revision = revision.id;
-                                    } else{
-                                        source.revision = 1;
-                                    }
-                                    cbAsync(null, source);
-                                });
-                            }
-                        ], (err, source) => {
-                            callback(err, source);
-                        });
-                    } else {
-                        callback(null, source);
-                    }
-                }
-            });
-        } else {
-            con.query('SELECT deck.* FROM deck JOIN deck_revision ON deck_revision.deck_id = deck.id WHERE deck_revision.id = ' + new_revision.translated_from.source.revision, (err, rows) => {
-                if (err) {
-                    callback(err, source);
-                } else {
-                    async.waterfall([
-                        function addDecksToUsage(cbAsync){
-                            process_deck(rows[0], cbAsync);
-                        },
+// function buildTranslatedFrom(new_revision, revision_type, callback){
+//     let source = {
+//         id: null,
+//         revision: null
+//     };
+//     if (new_revision.translated_from.source.revision){
+//         console.log('ADD TRANSLATION FOR SLIDE ' + new_revision.id);
+//         if (revision_type === 'slide'){
+//             con.query('SELECT slide.* FROM slide INNER JOIN slide_revision ON slide_revision.slide = slide.id WHERE slide_revision.id = ' + new_revision.translated_from.source.revision, (err, rows) => {
+//                 if (err) {
+//                     callback(err, source);
+//                 } else {
+//                     if (rows.length){
+//                         async.waterfall([
+//                             function addSlideTranslatedFrom(cbAsync){
+//                                 process_slide(rows[0], cbAsync);
+//                             },
+//                             function AddRevisionToSource(cbAsync){
+//                                 source.id = rows[0].id;
+//                                 Slide.findOne({'_id' : rows[0].id}, (err, found) => {
+//                                     let revision = found.revisions.id(new_revision.translated_from.source.revision);
+//                                     if (revision){
+//                                         source.revision = revision.id;
+//                                     } else{
+//                                         source.revision = 1;
+//                                     }
+//                                     cbAsync(null, source);
+//                                 });
+//                             }
+//                         ], (err, source) => {
+//                             callback(err, source);
+//                         });
+//                     } else {
+//                         callback(null, source);
+//                     }
+//                 }
+//             });
+//         } else {
+//             con.query('SELECT deck.* FROM deck JOIN deck_revision ON deck_revision.deck_id = deck.id WHERE deck_revision.id = ' + new_revision.translated_from.source.revision, (err, rows) => {
+//                 if (err) {
+//                     callback(err, source);
+//                 } else {
+//                     async.waterfall([
+//                         function addDecksToUsage(cbAsync){
+//                             process_deck(rows[0], cbAsync);
+//                         },
+//
+//                         function AddRevisionToUsage(cbAsync){
+//                             source.id = rows[0].id;
+//                             Deck.findOne({'_id' : rows[0].id}, (err, found) => {
+//                                 let revision = found.revisions.id(new_revision.translated_from.source.revision);
+//                                 if (revision){
+//                                     source.revision = revision.id;
+//                                 } else{
+//                                     //source.revision = 1;
+//                                     console.log('REVISION ERROR');
+//                                 }
+//                                 cbAsync(null, source);
+//                             });
+//                         }
+//                     ], (err, source) => {
+//                         callback(err, source);
+//                     });
+//                 }
+//             });
+//         }
+//     } else {
+//         callback(null, source);
+//     }
+// }
 
-                        function AddRevisionToUsage(cbAsync){
-                            source.id = rows[0].id;
-                            Deck.findOne({'_id' : rows[0].id}, (err, found) => {
-                                let revision = found.revisions.id(new_revision.translated_from.source.revision);
-                                if (revision){
-                                    source.revision = revision.id;
-                                } else{
-                                    //source.revision = 1;
-                                    console.log('REVISION ERROR');
-                                }
-                                cbAsync(null, source);
-                            });
-                        }
-                    ], (err, source) => {
-                        callback(err, source);
-                    });
-                }
-            });
-        }
-    } else {
-        callback(null, source);
-    }
-}
-
-function collectUsage(new_revision, revision_type, callback){
-    async.waterfall([
-        function getDecks(cbAsync){
-            if (revision_type === 'slide'){
-                //console.log('adding usage for slide ' + new_revision._id);
-                con.query('SELECT deck_revision.deck_id AS deck_id, deck_content.deck_revision_id AS revision_id ' +
-                'FROM deck_content LEFT JOIN deck_revision ON deck_revision.id = deck_content.deck_revision_id ' +
-                'WHERE item_type = "slide" AND item_id = ' + new_revision.mysql_id, (err, rows) => {
-                    if (err) {
-                        cbAsync(err, null);
-                    } else {
-                        cbAsync(null, rows);
-                    }
-                });
-            } else {
-                con.query('SELECT deck_revision.deck_id AS deck_id, deck_content.deck_revision_id AS revision_id ' +
-                'FROM deck_content LEFT JOIN deck_revision ON deck_revision.id = deck_content.deck_revision_id ' +
-                'WHERE deck_content.item_type = "deck" AND deck_content.item_id = ' + new_revision.mysql_id, (err, rows) => {
-                    if (err) {
-                        cbAsync(err, null);
-                    } else {
-                        cbAsync(null, rows);
-                    }
-                });
-            }
-        },
-        function processDecks(rows, cbAsync){
-            if (rows){
-                async.eachSeries(rows, (row, cbEach) => {
-                    let usage = {};
-                    con.query('SELECT * FROM deck WHERE id = ' + row.deck_id, (err, deck_rows) => {
-                        if (err) {
-                            console.log(err);
-                            cbEach();
-                        }else{
-                            async.waterfall([
-                                function addDecksToUsage(cbWF){
-                                    process_deck(deck_rows[0], cbWF);
-                                },
-                                function AddRevisionToUsage(cbWF){
-                                    Deck.findOne({'_id' : row.deck_id}, (err, found) => {
-                                        usage.id = row.deck_id;
-                                        let revision = found.revisions.id(row.revision_id);
-                                        if (revision){
-                                            usage.revision = revision.id;
-                                        } else{
-                                            console.log('error of async for !!!!!!!!!!!!!!!!' + revision_type + new_revision.mysql_id + '-' + new_revision.id);
-                                            //usage.revision = 1;
-                                        }
-                                        //console.log('USAGE: ' +usage);
-                                        cbWF();
-                                    });
-                                }
-                            ], () => {
-                                new_revision.usage.push(usage);
-                                //new_revision.type = null;
-                                cbEach();
-                            });
-                        }
-                    });
-                }, cbAsync);
-            }else{
-                cbAsync();
-            }
-        }
-    ], callback);
-}
+// function collectUsage(new_revision, revision_type, callback){
+//     async.waterfall([
+//         function getDecks(cbAsync){
+//             if (revision_type === 'slide'){
+//                 //console.log('adding usage for slide ' + new_revision._id);
+//                 con.query('SELECT deck_revision.deck_id AS deck_id, deck_content.deck_revision_id AS revision_id ' +
+//                 'FROM deck_content LEFT JOIN deck_revision ON deck_revision.id = deck_content.deck_revision_id ' +
+//                 'WHERE item_type = "slide" AND item_id = ' + new_revision.mysql_id, (err, rows) => {
+//                     if (err) {
+//                         cbAsync(err, null);
+//                     } else {
+//                         cbAsync(null, rows);
+//                     }
+//                 });
+//             } else {
+//                 con.query('SELECT deck_revision.deck_id AS deck_id, deck_content.deck_revision_id AS revision_id ' +
+//                 'FROM deck_content LEFT JOIN deck_revision ON deck_revision.id = deck_content.deck_revision_id ' +
+//                 'WHERE deck_content.item_type = "deck" AND deck_content.item_id = ' + new_revision.mysql_id, (err, rows) => {
+//                     if (err) {
+//                         cbAsync(err, null);
+//                     } else {
+//                         cbAsync(null, rows);
+//                     }
+//                 });
+//             }
+//         },
+//         function processDecks(rows, cbAsync){
+//             if (rows){
+//                 async.eachSeries(rows, (row, cbEach) => {
+//                     let usage = {};
+//                     con.query('SELECT * FROM deck WHERE id = ' + row.deck_id, (err, deck_rows) => {
+//                         if (err) {
+//                             console.log(err);
+//                             cbEach();
+//                         }else{
+//                             async.waterfall([
+//                                 function addDecksToUsage(cbWF){
+//                                     process_deck(deck_rows[0], cbWF);
+//                                 },
+//                                 function AddRevisionToUsage(cbWF){
+//                                     Deck.findOne({'_id' : row.deck_id}, (err, found) => {
+//                                         usage.id = row.deck_id;
+//                                         let revision = found.revisions.id(row.revision_id);
+//                                         if (revision){
+//                                             usage.revision = revision.id;
+//                                         } else{
+//                                             console.log('error of async for !!!!!!!!!!!!!!!!' + revision_type + new_revision.mysql_id + '-' + new_revision.id);
+//                                             //usage.revision = 1;
+//                                         }
+//                                         //console.log('USAGE: ' +usage);
+//                                         cbWF();
+//                                     });
+//                                 }
+//                             ], () => {
+//                                 new_revision.usage.push(usage);
+//                                 //new_revision.type = null;
+//                                 cbEach();
+//                             });
+//                         }
+//                     });
+//                 }, cbAsync);
+//             }else{
+//                 cbAsync();
+//             }
+//         }
+//     ], callback);
+// }
 
 function convert_language(mysql_language) {
     let array = mysql_language.split('-');
@@ -1165,16 +1199,20 @@ function process_revision(mysql_revision, callback){
                                 }
                             },
                             function buildContentItem(revision_number, cbwaterfall){
-                                new_revision.contentItems.push({
-                                    order: parseInt(row.position),
-                                    kind: row.item_type,
-                                    ref: {
-                                        id: row.item,
-                                        revision: revision_number
-                                    }
-                                });
-                                cbwaterfall();
-
+                                if (row.item_type === 'deck' && row.item >=1701 && row.item <=1725){
+                                    console.log(new_revision);
+                                    //cbwaterfall();
+                                }else{
+                                    new_revision.contentItems.push({
+                                        order: parseInt(row.position),
+                                        kind: row.item_type,
+                                        ref: {
+                                            id: row.item,
+                                            revision: revision_number
+                                        }
+                                    });
+                                    cbwaterfall();
+                                }
                             }
                         ], cbEach);
                     }else{ //adding item failed
@@ -1408,31 +1446,31 @@ function add_usage(deck_id, callback){ //adds usage looking in the whole decks
     });
 }
 
-function add_translations_slides(callback){ //adds translations for all slides presented
-    Slide.find({}, function(err, slides) {
-        async.eachSeries(slides, (slide, cbEach) => {
-            async.eachSeries(slide.revisions, (revision, cbEach2) => {
-                buildTranslatedFrom(revision, 'slide', (err, source) => {
-                    revision.source = source;
-                    slide.save(cbEach2);
-                } );
-            }, cbEach);
-        }, callback);
-    });
-}
+// function add_translations_slides(callback){ //adds translations for all slides presented
+//     Slide.find({}, function(err, slides) {
+//         async.eachSeries(slides, (slide, cbEach) => {
+//             async.eachSeries(slide.revisions, (revision, cbEach2) => {
+//                 buildTranslatedFrom(revision, 'slide', (err, source) => {
+//                     revision.source = source;
+//                     slide.save(cbEach2);
+//                 } );
+//             }, cbEach);
+//         }, callback);
+//     });
+// }
 
-function add_usage_deck(callback){ //adds usage for all decks
-    Deck.find({}, function(err, decks) {
-        console.log('FOUND ' + decks.length + 'decks++++++++++++++++++++++++++++++++++++++++++++++');
-        async.eachSeries(decks, (deck, cbEach) => {
-            async.eachSeries(deck.revisions, (revision, cbEach2) => {
-                collectUsage(revision, 'deck', (err, new_revision) => {
-                    deck.save(cbEach2);
-                } );
-            }, cbEach);
-        }, callback);
-    });
-}
+// function add_usage_deck(callback){ //adds usage for all decks
+//     Deck.find({}, function(err, decks) {
+//         console.log('FOUND ' + decks.length + 'decks++++++++++++++++++++++++++++++++++++++++++++++');
+//         async.eachSeries(decks, (deck, cbEach) => {
+//             async.eachSeries(deck.revisions, (revision, cbEach2) => {
+//                 collectUsage(revision, 'deck', (err, new_revision) => {
+//                     deck.save(cbEach2);
+//                 } );
+//             }, cbEach);
+//         }, callback);
+//     });
+// }
 
 function drop_counters(callback) {
     try {
