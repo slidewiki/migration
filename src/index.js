@@ -42,7 +42,7 @@ const con = mysql.createConnection(Config.MysqlConnection);
 //const DECKS_TO_MIGRATE = [2838, 2846, 3841]; //if the array is not empty, the further parameters are ignored
 //const DECKS_TO_MIGRATE = [584, 2926];
 const FILTER_SPAM_QUERY = "(SELECT deck_id FROM `deck_revision` WHERE `user_id` < 3891 AND (`user_id` NOT BETWEEN 1594 AND 1711) " +
-" AND (`user_id` NOT BETWEEN 1462 AND 1569) AND `user_id` NOT IN (1048, 1162, 1306, 1323, 1637, 1706, 1722, 1749, 1877," +
+" AND (`user_id` NOT BETWEEN 1462 AND 1569) AND `user_id` NOT IN (160, 1048, 1162, 1306, 1323, 1637, 1706, 1722, 1749, 1877," +
 " 1879, 1958, 2019, 2064, 2068, 2085, 2087, 2100, 2152, 2167, 2193, 2213, 2329, 2313, 2339, 2348, 2501, 2510, 2523, 2524, 2540," +
 " 2546, 2593, 2602, 2603, 2610, 2627, 2634, 2653, 2655, 2671, 2694, 2707, 2756, 2777, 2819, 2843, 2873, 2877, 2882, 2896, 2904, " +
 " 2926, 2942, 2973, 2976, 2980, 2985, 3021, 3062, 3063, 3064, 3076,  3091, 3101, 3102, 3103, 3124, 3181, 3190, 3200, 3213, 3224, " +
@@ -1191,6 +1191,8 @@ function process_revision(mysql_revision, callback){
                                     + row.item_id, (err, rank_rows) => {
                                         if (err) {
                                             cbwaterfall(err);
+                                        }else if (!rank_rows.length){ //the new content item is an empty deck
+                                            cbEach();
                                         }else{
                                             cbwaterfall(null, rank_rows[0].RowNumber);
                                         }
