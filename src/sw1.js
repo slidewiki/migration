@@ -1,15 +1,14 @@
 'use strict';
 
-let mysql = require('mysql');
 let mongoose = require('mongoose');
 let async = require('async');
 let he = require('he');
 
 
-// let UserSchema = require('./models/user.js');
-// let DeckSchema = require('./models/deck.js');
-// let SlideSchema = require('./models/slide.js');
-// let CounterSchema = require('./models/counters.js');
+let UserSchema = require('./models/user.js');
+let DeckSchema = require('./models/deck.js');
+let SlideSchema = require('./models/slide.js');
+let CounterSchema = require('./models/counters.js');
 let Config = require('./config.js');
 let co = require('./common.js');
 let fix_user = require('./fix_user.js').migrate_usernames;
@@ -23,142 +22,98 @@ const Comment = co.Comment;
 const Notification = co.Notification;
 const RevisionsTable = co.RevisionsTable;
 
+const User_stable = co.User_stable;
+const Deck_stable = co.Deck_stable;
+const Slide_stable = co.Slide_stable;
+const Counter_stable = co.Counter_stable;
+const Activity_stable = co.Activity_stable;
+const Comment_stable = co.Comment_stable;
+const Notification_stable = co.Notification_stable;
+const RevisionsTable_stable = co.RevisionsTable_stable;
+
 mongoose.Promise = global.Promise;
 
 //connecting to mongoDB
-// mongoose.connect(Config.PathToMongoDB, (err) => {
-//     if (err) {
-//         console.error('Error connecting to MongoDB');
-//         throw err;
-//         return -1;
-//    }
-// });
-
-
-//connecting to mysql
-const con = mysql.createConnection(Config.MysqlConnection);
-
-//array of deck ids to migrate
-//const DECKS_TO_MIGRATE = [2838, 2846, 3841]; //if the array is not empty, the further parameters are ignored
-//const DECKS_TO_MIGRATE = [584, 2926];
-const FILTER_SPAM_QUERY = "(SELECT deck_id FROM `deck_revision` WHERE `user_id` < 3891 AND (`user_id` NOT BETWEEN 1594 AND 1711) " +
-" AND (`user_id` NOT BETWEEN 1462 AND 1569) AND `user_id` NOT IN (160, 1048, 1162, 1306, 1323, 1637, 1706, 1722, 1749, 1877," +
-" 1879, 1958, 2019, 2064, 2068, 2085, 2087, 2100, 2152, 2167, 2193, 2213, 2329, 2313, 2339, 2348, 2501, 2510, 2523, 2524, 2540," +
-" 2546, 2593, 2602, 2603, 2610, 2627, 2634, 2653, 2655, 2671, 2694, 2707, 2756, 2777, 2819, 2843, 2873, 2877, 2882, 2896, 2904, " +
-" 2926, 2942, 2973, 2976, 2980, 2985, 3021, 3062, 3063, 3064, 3076,  3091, 3101, 3102, 3103, 3124, 3181, 3190, 3200, 3213, 3224, " +
-" 3240, 3242, 3246, 3247, 3248, 3251, 3263, 3274, 3275, 3277, 3278, 3280, 3290, 3302, 3304, 3306, 3313,  3322, 3327,  3328, 3349, " +
-" 3370, 3387, 3408, 3412, 3416, 3420, 3423, 3431, 3433, 3437, 3442, 3448, 3453, 3459, 3461, 3464, 3490, 3492, 3495, 3497, 3500, 3513, " +
-" 3517, 3519, 3520, 3523, 3525, 3527, 3533, 3538, 3549, 3552, 3560, 3565, 3585, 3601, 3620, 3622, 3635, 3650, 3656, 3634, 3657, 3673, " +
-" 3675, 3676, 3684, 3686, 3721, 3723, 3727, 3742, 3744, 3750, 3764, 3765, 3770, 3775, 3728, 3798, 3781, 3786, 3788, 3789, 3795, 3808, " +
-" 3810, 3819, 3832,3833, 3835, 3838, 3839, 3823, 3841, 3844, 3848, 3847, 3850, 3852, 3854, 3859, 3867, 3868, 3873, 3874, 3876, 3877, " +
-" 3878, 3879  ) AND `title` NOT LIKE '%Google%' AND title NOT LIKE '%facebook%' AND `title` NOT LIKE '%password%' " +
-" AND `title` NOT LIKE '%Call%' AND `title` NOT LIKE '%phone%' AND `title` NOT LIKE '%+91%' AND `title` NOT LIKE '%1-888%' " +
-" AND `title` NOT LIKE '%+%' AND `title` NOT LIKE '%payPal%' AND `title` NOT LIKE '%Yahoo%' AND `title` NOT LIKE '%Quickbooks%' " +
-" AND `title` NOT LIKE '%Visa%' AND `title` NOT LIKE '%Mesothelioma%' AND `title` NOT LIKE '%Hotmail%' AND `title` NOT LIKE '%1800-721%' " +
-" AND `title` NOT LIKE '%0537%' AND `title` NOT LIKE '%1-8%' AND `title` NOT LIKE '%1844%' AND `title` NOT LIKE '%steering%' " +
-" AND `title` NOT LIKE '%Gmail%' AND `title` NOT LIKE '%Slide 1%' AND `title` NOT LIKE '%Outlook%' AND `title` NOT LIKE '%online photography%' " +
-" AND `title` NOT LIKE '%photography online%' AND `title` NOT LIKE '%bright circle%' AND `title` NOT LIKE '%Ayurveda%' " +
-" AND `title` NOT LIKE '%Quicken%' AND `title` NOT LIKE '%hotamil%' AND `title` NOT LIKE '%Homework help%' AND `title` NOT LIKE '%Black magic%'" +
-" AND `title` NOT LIKE '%tarot card%' AND `title` NOT LIKE '%taxi%' AND `title` NOT LIKE '%1800-8%' AND `title` NOT LIKE '%Vastu%' " +
-" AND `title` NOT LIKE '%971%' AND `title` NOT LIKE '%1800-%' AND `title` NOT LIKE '%877-%' AND `title` NOT LIKE '%mcAffee%' " +
-" AND `title` NOT LIKE '%escorts%' AND `title` NOT LIKE '%paintings online%' AND `title` NOT LIKE '%customer service%' " +
-" AND `title` NOT LIKE '%vashikaran%' AND `title` NOT LIKE '%support number%' AND `title` NOT LIKE '%1855%' AND `title` NOT LIKE '%buy online%' " +
-" AND `title` NOT LIKE '%Ayurvedic%' AND `title` NOT LIKE '%855%' AND `title` NOT LIKE '%astrology%' AND `title` NOT LIKE '%baba%' " +
-" AND `title` NOT LIKE '%917%' AND `title` NOT LIKE '%India%' AND `title` NOT LIKE '%Delhi%' AND `title` NOT LIKE '%laptop%' " +
-" AND `title` NOT LIKE '%dentist%' AND `title` NOT LIKE '%tantra%' AND `title` NOT LIKE '%love%' AND `title` NOT LIKE '%kaal%' " +
-" AND `title` NOT LIKE '%marriage%' AND `title` NOT LIKE '%mcafee%' AND `title` NOT LIKE '%quickbook%' AND `abstract` NOT LIKE '%quickbook%' " +
-" AND `abstract` NOT LIKE '%+%' AND `abstract` NOT LIKE '%1-8%' AND `abstract` NOT LIKE '%0800%' AND `title` NOT LIKE '%0800%' " +
-" AND `title` NOT LIKE '%astrolog%' AND `abstract` NOT LIKE '%astrolog%' AND `title` NOT LIKE '%http%' AND `title` NOT LIKE '%escort%' " +
-" AND `title` NOT LIKE '%bangalore%' AND `title` NOT LIKE '%chandigarth%' AND `title` NOT LIKE '%virgin%' AND `title` NOT LIKE '%844%' " +
-" AND `title` NOT LIKE '%24/7%' AND `abstract` NOT LIKE '%24/7%' AND `title` NOT LIKE '%0532%' AND `abstract` NOT LIKE '%0532%' GROUP BY deck_id)"
-
-const DECKS_TO_MIGRATE = [29];
-const DECKS_LIMIT = 0;
-const DECKS_OFFSET = 0;
-const ImageURI = 'localhost'; //for creating thumbnails
-const ImagePort = 8882; //for creating thumbnails
-
-
-// function uniq(a) {
-//     var prims = {'boolean':{}, 'number':{}, 'string':{}}, objs = [];
-//
-//     return a.filter(function(item) {
-//         var type = typeof item;
-//         if(type in prims)
-//             return prims[type].hasOwnProperty(item) ? false : (prims[type][item] = true);
-//         else
-//             return objs.indexOf(item) >= 0 ? false : objs.push(item);
-//     });
-// }
-
-
-
-con.connect((err) => {
-    if(err){
-        console.error('Error connecting to MySQL Database');
-        if (err) throw err;
-        return -2;
-    }
-    else { // here comes the migration
-        con.query('set session sql_mode=\'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION\';', (err, rows) => {
-            if(err){
-                throw err;
-                return -3;
-            }
-        });
-        con.query('set global sql_mode=\'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION\';', (err, rows) => {
-            if(err){
-                throw err;
-                return -3;
-            }
-        });
-        async.series([
-            //drop_users, //try to empty users collection;
-            migrate_users, //migrate users
-            //drop_slides,
-
-            //drop_decks, //try to empty deck collection; AFTER THAT
-            //clean_contributors, //if this a second run
-            //remove_usage,
-            migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
-
-            add_usage_handler, //do it once after all decks have been migrated
-            format_contributors_slides, //do it once after all decks have been migrated
-            format_contributors_decks, //do it once after all decks have been migrated
-
-            fix_origin_slides, //build origins using new revision numbers instead of old ones
-            fix_origin_decks, //build origins using new revision numbers instead of old ones
-
-            drop_counters,
-            createCounters,
-            fix_user,
-            //adjust_model_decks //in development
-            //createThumbs,
-        ],
-        (err) => {
-            if (err) {
-                mongoose.connection.close();
-                console.error(err);
-                process.exit(0);
-            }
-
-            mongoose.connection.close();
-            console.log('Migration is successful');
-            process.exit(0);
-        });
+mongoose.connect(Config.slidewiki, (err) => {
+    if (err) {
+        console.error('Error connecting to MongoDB');
+        throw err;
+    } else{
+        mongoose.connect(Config.slidewiki_stable), (err) => {
+            console.error('Error connecting to MongoDB');
+            throw err;
+        };
     }
 });
 
-function createThumbs(callback) {
-    Slide.find({}, (err, slides) => {
-        //console.log('slides found: ' + slides.length);
-        async.eachSeries(slides, (slide, cbEach) => {
-            createThumbnail(slide.revisions[slide.revisions.length-1].content, slide._id.toString(), slide.user.toString());
-            cbEach();
-        }, () => {
-            callback();
-        });
+
+async.series([
+    //migrate_users, //migrate users
+    update_counters,
+    //check_decks,
+    //migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
+
+],
+(err) => {
+    if (err) {
+        co.sw.close();
+        co.SW.close();
+        console.error(err);
+        process.exit(0);
+    }
+
+    co.sw.close();
+    co.SW.close();
+    console.log('Migration is successful');
+    process.exit(0);
+});
+
+function update_counters(callback){
+    //find max id for decks, slides and Users in SW
+    //set those as counters for sw
+    async.series([
+        (callback1) => {
+            Counter_stable.findOne({'_id': 'users'}, (err, counter_stable) => {
+                User.findOne({}).sort('-_id').exec((err, maximum) => {
+                    //console.log(maximum);
+                    counter_stable.seq = maximum._id;
+                    counter_stable.save(callback1);
+                });
+            });
+        },
+        (callback2) => {
+            Counter_stable.findOne({'_id': 'decks'}, (err, counter_stable) => {
+                Deck.findOne({}).sort('-_id').exec((err, maximum) => {
+                    //console.log(maximum);
+                    counter_stable.seq = maximum._id;
+                    counter_stable.save(callback2);
+                });
+            });
+        },
+        (callback3) => {
+            Counter_stable.findOne({'_id': 'slides'}, (err, counter_stable) => {
+                Slide.findOne({}).sort('-_id').exec((err, maximum) => {
+                    //console.log(maximum);
+                    counter_stable.seq = maximum._id;
+                    counter_stable.save(callback3);
+                });
+            });
+        },
+
+    ],
+    // optional callback
+    (err, results) => {
+        callback();
     });
+
+}
+
+function check_decks(callback){
+    //check all decks on stabe if they have conflicts by id
+    //if they have - solve the conflicts inside
+    // Deck_stable.find({}, (err, decks) => {
+    //     async.
+    // })
 }
 
 function migrate_users(callback){
@@ -177,77 +132,60 @@ function migrate_users(callback){
     });
 }
 
-// function adjust_model_decks(callback){
-//     Deck.find({}, (err, decks)=> {
-//         async.each(decks, (deck, cbEach) => {
-//             deck.accessLevel = null;
-//             if (deck.origin){
-//                 deck.translated_from = {'status': 'google'};
-//             }else{
-//                 deck.translated_from = {'status': 'original'};
-//             }
-//             deck.save(cbEach);
-//         }, callback);
-//
-//     });
-// }
 
 function migrate_decks(callback){
-    let query = '';
-    if (DECKS_TO_MIGRATE.length){
-        async.eachOf(DECKS_TO_MIGRATE, (deck_id, key) => { //building a query for migrating several decks
-            if (key){
-                query += ' OR id = ' + deck_id;
-            }else{
-                query = 'id = ' + deck_id;
-            }
-        });
-    }else {
-        if (DECKS_LIMIT > 0) {
-            query = 'id IN' + FILTER_SPAM_QUERY + ' LIMIT ' + DECKS_LIMIT; //get n first decks
-            if (DECKS_OFFSET > 0){
-                query+= ' OFFSET ' + DECKS_OFFSET;
-            }
-        }else if (DECKS_OFFSET > 0){
-            query = 'id IN' + FILTER_SPAM_QUERY + ' LIMIT 10000 OFFSET ' + DECKS_OFFSET;
-        }else{
-            query = 'id IN' + FILTER_SPAM_QUERY; //get all decks
-        }
+    Deck_stable.find({}, (err, decks)=>{
+        async.each(decks, (deck, cbEach)=> {
+            let new_deck = new Deck({
+                '_id' : deck._id,
+                'user' : deck.user,
+                'timestamp' : deck.timestamp,
+                'description' : deck.description,
+                'lastUpdate' :deck.lastUpdate,
+                'active' : deck.active,
+                'datasource': deck.datasource,
+                'contributors' : deck.contributors,
+                'tags' : deck.tags,
+                'revisions' : deck.revisions,
+                'translations' : deck.translations,
+                'license' : deck.license,
+                'editors' : deck.editors
+            });
+            //new_deck.__v = 0;
+            //console.log(new_deck);
+            new_deck.save((err) => {
+                if (err) {
+                    if (err.code === 11000) { //the deck on stable has the same id as the deck from old slidewiki
+                        Deck.findOne({'_id':new_deck._id}, (err, existing) => {
+                            console.log(new_deck);
+                            //console.log(new_deck);
+                            if (new_deck.revisions[0].mysql_id){ //the deck on stable was already migrated before, updating it from stable
+                                existing.user = deck.user;
+                                existing.timestamp = deck.timestamp;
+                                existing.description = deck.description;
+                                existing.lastUpdate = deck.lastUpdate;
+                                existing.active = deck.active;
+                                existing.datasource = deck.datasource;
+                                existing.contributors = deck.contributors;
+                                existing.tags = deck.tags;
+                                existing.revisions = deck.revisions;
+                                existing.translations = deck.translations;
+                                existing.license = deck.license;
+                                existing.editors = deck.editors;
+                                existing.save(cbEach);
+                            }else{ //the deck was created on stable originally and conflicts with old slidewiki - should not happen
+                                console.log('Cant migrate deck wit id '+ new_deck.id);
+                            }
+                        });
 
-    }
+                    }else{
+                        console.log(err);
+                    }
+                } else cbEach();
+            });
 
-    con.query('SELECT * FROM deck WHERE ' + query, (err, rows) => {
-        if(err) {
-            console.log(err);
-            callback(err);
-            return;
-        }else{
-            let mysql_decks = rows;
-            let count = mysql_decks.length;
-            async.eachSeries(mysql_decks, (deck, cbEach) => {
-                if (deck.id < 1701 || deck.id > 1725){ //filtering big meaningless decks
-                    console.log('Adding deck ' + deck.id);
-                    process_deck(deck, (err) => {
-                        if (err) {
-                            console.log('Error in migrating deck ' + deck.id);
-                            count--;
-                            console.log(count + ' decks left in stack');
-                            cbEach();
-                        }else{
-                            count--;
-                            console.log(count + ' decks left in stack');
-                            cbEach();
-                        }
-                    });
-                }else{
-                    count--;
-                    console.log(count + ' decks left in stack');
-                    cbEach();
-                }
-            }, callback);
-        }
+        }, callback);
     });
-
 }
 
 function drop_users(callback){
@@ -1476,7 +1414,7 @@ function add_usage(deck_id, callback){ //adds usage looking in the whole decks
 
 function drop_counters(callback) {
     try {
-        co.SW.db.dropCollection('counters');
+        mongoose.connection.db.dropCollection('counters');
     } catch (err) {
         callback(err);
         return;
