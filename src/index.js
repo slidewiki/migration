@@ -100,6 +100,8 @@ con.connect((err) => {
         return -2;
     }
     else { // here comes the migration
+        console.time('migration');
+
         con.query('set session sql_mode=\'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION\';', (err, rows) => {
             if(err){
                 throw err;
@@ -139,10 +141,12 @@ con.connect((err) => {
             if (err) {
                 mongoose.connection.close();
                 console.error(err);
+                console.timeEnd('migration');
                 process.exit(0);
             }
 
             mongoose.connection.close();
+            console.timeEnd('migration');
             console.log('Migration is successful');
             process.exit(0);
         });
