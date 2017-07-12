@@ -1309,9 +1309,9 @@ function process_user(mysql_user, callback){
 
 function add_usage_handler(callback){
     Deck.find({}, (err, decks) => {
-        async.eachSeries(decks, (deck_id, cbEach) => {
-            console.log('Adding usage for deck ' + deck_id);
-            add_usage(deck_id, () => {
+        async.eachSeries(decks, (deck, cbEach) => {
+            console.log('Adding usage for deck ' + deck._id);
+            add_usage(deck._id, () => {
                 cbEach();
             });
         }, callback);

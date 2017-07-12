@@ -1,8 +1,8 @@
 'use strict';
 
 let Config = {
-    slidewiki : 'mongodb://mongodb:27017/stable',
-    slidewiki_stable : 'mongodb://mongodb:27017/slidewiki',
+    slidewiki : 'mongodb://mongodb:27017/slidewiki',
+    slidewiki_stable : 'mongodb://mongodb:27017/stable',
     MysqlConnection : {
         user: 'root',
         password: 'linuxisgreat',
