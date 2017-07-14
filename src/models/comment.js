@@ -15,13 +15,15 @@ const CommentSchema = mongoose.Schema({
     text: {
         type: 'string'
     },
-    timestamp: {
-        type: 'object'
+    timestamp: {},
+    user_id: {
+        type: Number,
+        required: true
     },
-    user_id: objectid,
     parent_comment: objectid,
     content_id: {
-        type: 'string'
+        type: 'string',
+        required: true
     },
     content_kind: {
         type: 'string',

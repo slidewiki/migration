@@ -19,9 +19,13 @@ const Deck = co.Deck;
 const Slide = co.Slide;
 const Counter = co.Counter;
 const Activity = co.Activity;
-const Comment = co.Comment;
+const Discussion = co.Discussion;
 const Notification = co.Notification;
 const RevisionsTable = co.RevisionsTable;
+const DeckChange = co.DeckChange;
+const Media = co.Media;
+const Tag = co.Tag;
+const Usergroup = co.Usergroup;
 
 mongoose.Promise = global.Promise;
 
@@ -72,7 +76,7 @@ const FILTER_SPAM_QUERY = "(SELECT deck_id FROM `deck_revision` WHERE `user_id` 
 " AND `title` NOT LIKE '%bangalore%' AND `title` NOT LIKE '%chandigarth%' AND `title` NOT LIKE '%virgin%' AND `title` NOT LIKE '%844%' " +
 " AND `title` NOT LIKE '%24/7%' AND `abstract` NOT LIKE '%24/7%' AND `title` NOT LIKE '%0532%' AND `abstract` NOT LIKE '%0532%' GROUP BY deck_id)"
 
-const DECKS_TO_MIGRATE = [29];
+const DECKS_TO_MIGRATE = [2838];
 const DECKS_LIMIT = 0;
 const DECKS_OFFSET = 0;
 const ImageURI = 'localhost'; //for creating thumbnails
@@ -115,13 +119,13 @@ con.connect((err) => {
             }
         });
         async.series([
-            //drop_users, //try to empty users collection;
+            drop_users, //try to empty users collection;
             migrate_users, //migrate users
-            //drop_slides,
+            drop_slides,
 
-            //drop_decks, //try to empty deck collection; AFTER THAT
-            //clean_contributors, //if this a second run
-            //remove_usage,
+            drop_decks, //try to empty deck collection; AFTER THAT
+
+            remove_usage,
             migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
 
             add_usage_handler, //do it once after all decks have been migrated
@@ -131,6 +135,7 @@ con.connect((err) => {
             fix_origin_slides, //build origins using new revision numbers instead of old ones
             fix_origin_decks, //build origins using new revision numbers instead of old ones
 
+            //migrate_media, //should test - locally runs out of memory
             drop_counters,
             createCounters,
             fix_user,
@@ -165,6 +170,73 @@ function createThumbs(callback) {
     });
 }
 
+function migrate_media(callback){
+    con.query('SELECT * FROM media INNER JOIN media_relations ON media.id = media_relations.media_id WHERE ' +
+
+    "`user_id` < 3891 AND (`user_id` NOT BETWEEN 1594 AND 1711) " +
+    " AND (`user_id` NOT BETWEEN 1462 AND 1569) AND `user_id` NOT IN (160, 1048, 1162, 1306, 1323, 1637, 1706, 1722, 1749, 1877," +
+    " 1879, 1958, 2019, 2064, 2068, 2085, 2087, 2100, 2152, 2167, 2193, 2213, 2329, 2313, 2339, 2348, 2501, 2510, 2523, 2524, 2540," +
+    " 2546, 2593, 2602, 2603, 2610, 2627, 2634, 2653, 2655, 2671, 2694, 2707, 2756, 2777, 2819, 2843, 2873, 2877, 2882, 2896, 2904, " +
+    " 2926, 2942, 2973, 2976, 2980, 2985, 3021, 3062, 3063, 3064, 3076,  3091, 3101, 3102, 3103, 3124, 3181, 3190, 3200, 3213, 3224, " +
+    " 3240, 3242, 3246, 3247, 3248, 3251, 3263, 3274, 3275, 3277, 3278, 3280, 3290, 3302, 3304, 3306, 3313,  3322, 3327,  3328, 3349, " +
+    " 3370, 3387, 3408, 3412, 3416, 3420, 3423, 3431, 3433, 3437, 3442, 3448, 3453, 3459, 3461, 3464, 3490, 3492, 3495, 3497, 3500, 3513, " +
+    " 3517, 3519, 3520, 3523, 3525, 3527, 3533, 3538, 3549, 3552, 3560, 3565, 3585, 3601, 3620, 3622, 3635, 3650, 3656, 3634, 3657, 3673, " +
+    " 3675, 3676, 3684, 3686, 3721, 3723, 3727, 3742, 3744, 3750, 3764, 3765, 3770, 3775, 3728, 3798, 3781, 3786, 3788, 3789, 3795, 3808, " +
+    " 3810, 3819, 3832,3833, 3835, 3838, 3839, 3823, 3841, 3844, 3848, 3847, 3850, 3852, 3854, 3859, 3867, 3868, 3873, 3874, 3876, 3877, " +
+    " 3878, 3879  )" , (err, rows) =>{
+        if (err) {
+            console.log(err);
+            callback(err);
+            return;
+        }else{
+            console.log('Starting the migration of media: ' + rows.length + ' entries');
+            let mysql_medias = rows;
+            async.eachSeries(mysql_medias, process_media, () => {
+                console.log('media are migrated');
+                callback();
+            })
+        }
+    })
+}
+
+
+function process_media(media, callback){
+    console.log('processing media ' + media.id);
+    let new_media = new Media({
+        _id: parseInt(media.id),
+        title: media.title,
+        type: media.URI.split('.').slice(-1)[0], //the extension taken from the URI
+        fileName: media.URI.split('/').slice(-1)[0],
+        owner: media.user_id,
+        license: 'CC0',
+        originalCopyright: 'Not indicated',
+        slidewikiCopyright: 'Help by SlideWiki User '+media.user_id,
+        metadata: {
+            Geometry: media.original_width+'x'+media.original_height+'+0+0'
+        }
+    });
+    switch (new_media.type) {
+    case 'jpg' :
+        new_media.type = 'image/jpeg';
+        break;
+    case 'png' :
+        new_media.type = 'image/png';
+        break;
+    default:
+        new_media.type = 'image/jpeg';
+    }
+    new_media.save((err, new_media) => {
+        if (err){
+            console.log('media failed, id = ' + media.id + ' error: ' + err);
+            callback(err);
+            return;
+        }else{
+            console.log('Media saved with id: ' + new_media._id);
+            callback();
+        }
+    });
+}
+
 function migrate_users(callback){
     con.query('SELECT * FROM users WHERE 1', (err, rows) => {
         if(err) {
@@ -181,20 +253,6 @@ function migrate_users(callback){
     });
 }
 
-// function adjust_model_decks(callback){
-//     Deck.find({}, (err, decks)=> {
-//         async.each(decks, (deck, cbEach) => {
-//             deck.accessLevel = null;
-//             if (deck.origin){
-//                 deck.translated_from = {'status': 'google'};
-//             }else{
-//                 deck.translated_from = {'status': 'original'};
-//             }
-//             deck.save(cbEach);
-//         }, callback);
-//
-//     });
-// }
 
 function migrate_decks(callback){
     let query = '';
@@ -256,7 +314,7 @@ function migrate_decks(callback){
 
 function drop_users(callback){
     try {
-        mongoose.connection.db.dropCollection('users');
+        co.SW.db.dropCollection('users');
     }
     catch(err) {
         console.log(err);
@@ -269,7 +327,7 @@ function drop_users(callback){
 
 function drop_decks(callback){
     try {
-        mongoose.connection.db.dropCollection('decks');
+        co.SW.db.dropCollection('decks');
     }
     catch(err) {
         callback(err);
@@ -282,7 +340,7 @@ function drop_decks(callback){
 
 function drop_slides(callback){
     try {
-        mongoose.connection.db.dropCollection('slides');
+        co.SW.db.dropCollection('slides');
     }
     catch(err) {
         callback(err);
@@ -496,8 +554,10 @@ function process_deck(mysql_deck, callback){
         active: null,
         datasource: mysql_deck.description,
         license: 'CC BY-SA',
+        editors: {groups: {}, users: {}}
     });
     async.waterfall([
+
         function buildOrigin(cbAsync){
             if (mysql_deck.translated_from){
                 console.log('Adding origin');
@@ -554,7 +614,19 @@ function process_deck(mysql_deck, callback){
                             }
                             processed++;
                             if (processed === array.length){
+
                                 cbAsync(null, mysql_revisions);
+                            }else{
+                                if (processed === array.length-1){
+                                    con.query('SELECT * FROM user_group INNER JOIN users ON users.id=user_group.user_id WHERE deck_revision_id=' + revision.id, (err, rows) => {
+                                        if (err) console.log(err); else{
+                                            async.eachOfSeries(rows, (row, key, cbX) => {
+                                                new_deck.editors.users[key] = {'id': rows[key].id, 'user': rows[key].username};
+                                                cbX();
+                                            },console.log('Editors added'));
+                                        }
+                                    });
+                                }
                             }
                         }else{
                             console.log(err);

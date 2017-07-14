@@ -15,7 +15,6 @@ const Contributor = {
     }
 };
 const dataSource = {
-    _id: Number,
     type: {
         type: String,
         required: true
@@ -71,10 +70,50 @@ const SlideRevision = mongoose.Schema({
         minimum: 0
     },
     comment: 'string',
+    note: {
+        type: 'string'
+    },
+    translation: {
+        status: {
+            type: 'string',
+            enum: ['original', 'google', 'revised']
+        },
+        source: {
+            id: {
+                type: 'number'
+            },
+            revision: {
+                type: 'number'
+            }
+        },
+        translator: Number,
+    },
+    tags: [{tagName:'string'}],
+    media: [objectid],
+    dataSources: [dataSource],
+    usage: [{id: {type: Number, required: true}, revision: {type: Number, required: true}}]
+});
+
+const SlideSchema = mongoose.Schema({
+    _id: 'number',
+    user: {
+        type: Number,
+        required: true
+    },
+    description: {
+        type: 'string'
+    },
+    translations: [
+        {
+            language: {
+                type: 'string'
+            },
+            slide_id: objectid
+        }],
     translated_from: {
         status: {
             type: 'string',
-            enum: ['original', 'google', 'revised', null]
+            enum: ['original', 'google', 'revised']
         },
         source: {
             id: {
@@ -85,30 +124,9 @@ const SlideRevision = mongoose.Schema({
             }
         },
         translator: {
-            id: 'number',
-            username: 'string'
-        }
-    },
-    tags: [{tagName:'string'}],
-    media: [objectid],
-    dataSources: [dataSource],
-    usage: [{id: Number, revision: Number}]
-});
-
-const SlideSchema = mongoose.Schema({
-    _id: 'number',
-    user: objectid,
-    description: {
-        type: 'string'
-    },
-    translations: { //put here all translations explicitly - slide ids
-        type: 'array',
-        items: {
-            language: {
-                type: 'string'
-            },
-            deck_id: objectid
-        }
+            id: Number,
+            username: String
+        },
     },
     origin: {
         id: objectid,
@@ -118,17 +136,12 @@ const SlideSchema = mongoose.Schema({
         title: String
     },
     timestamp: {
-        type: String
+        type: String,
+        format: 'date-time'
     },
     revisions: [SlideRevision],
     contributors: [Contributor],
-    tags: {
-        type: 'array',
-        items: {
-            type: 'string'
-        }
-    },
-    active: objectid,
+    //active: objectid,
     datasource: 'string',
     lastUpdate: {
         type: 'string',

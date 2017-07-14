@@ -5,31 +5,60 @@ const objectid = {
     type: Number,
 };
 
+const provider = mongoose.Schema({
+    provider: {
+        type: 'string',
+        required: true
+    },
+    token: {
+        type: 'string',
+        required: true
+    },
+    expires: {
+        type: 'number'
+    },
+    extra_token: {
+        type: 'string'
+    },
+    scope: {
+        type: 'string'
+    },
+    token_creation: {
+        type: 'string',
+        format: 'date-time',
+        required: true
+    },
+    id: {
+        type: 'string'
+    },
+    identifier: {
+        type: 'string'
+    },
+    email: {
+        type: 'string'
+    }
+});
+
 const UserSchema = mongoose.Schema({
     _id: {
-        type: Number
+        type: 'number'
     },
     email: {
         type: 'string',
         format: 'email',
-        required: true,
+        required: true
     },
     username: {
         type: 'string',
-        required: true,
+        required: true
     },
     password: {
         type: 'string'
     },
-    defaults: {
-        type: 'array',
-        items: {
-            type: 'object'
-        }
-    },
+    defaults: [{}],
     registered: {
         type: 'string',
-        format: 'datetime'
+        format: 'date-time'
     },
     surname: {
         type: 'string'
@@ -40,15 +69,10 @@ const UserSchema = mongoose.Schema({
     country: {
         type: 'string'
     },
-    spokenLanguages: {
-        type: 'array',
-        items: {
-            type: 'string'
-        }
-    },
+    spokenLanguages: [String],
     frontendLanguage: {
         type: 'string',
-        required: true,
+        required: true
     },
     picture: {
         type: 'string'
@@ -64,17 +88,18 @@ const UserSchema = mongoose.Schema({
         format: 'date'
     },
     infodeck: {
-        type: 'object',
-        properties: {
-            id: objectid,
-            revision: {
-                type: Number
-            }
+        id: objectid,
+        revision: {
+            type: 'number'
         }
     },
     organization: {
         type: 'string'
-    }
+    },
+    deactivated: {
+        type: 'boolean'
+    },
+    providers: [provider]
 });
 
 module.exports = UserSchema;

@@ -9,17 +9,25 @@ const objectid = {
     minLength: 1
 };
 const NotificationSchema = mongoose.Schema({
-    activity_id: objectid,
+    activity_id: {
+        type: Number,
+        required: true
+    },
     activity_type: {
         type: 'string',
-        enum: ['translate', 'share', 'add', 'edit', 'comment', 'reply', 'use', 'react', 'rate', 'download']
+        enum: ['translate', 'share', 'add', 'edit', 'comment', 'reply', 'use', 'react', 'rate', 'download'],
+        required: true
     },
     timestamp: {
-        type: 'object'
+        type: String
     },
-    user_id: objectid,
+    user_id: {
+        type: Number,
+        required: true
+    },
     content_id: {
-        type: 'string'
+        type: 'string',
+        required: true
     },
     content_kind: {
         type: 'string',
@@ -29,7 +37,10 @@ const NotificationSchema = mongoose.Schema({
         type: 'string'
     },
     content_owner_id: objectid,
-    subscribed_user_id: objectid,
+    subscribed_user_id: {
+        type: Number,
+        required: true
+    },
     translation_info: {
         content_id: {
             type: 'string'
@@ -39,9 +50,6 @@ const NotificationSchema = mongoose.Schema({
         }
     },
     share_info: {
-        postURI: {
-            type: 'string'
-        },
         platform: {
             type: 'string'
         }
@@ -65,7 +73,7 @@ const NotificationSchema = mongoose.Schema({
     },
     rate_type:  {
         type: 'string'
-    }    
+    }
 });
 
 //export

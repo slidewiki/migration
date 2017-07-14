@@ -14,10 +14,11 @@ const ActivitySchema = mongoose.Schema({
         enum: ['translate', 'share', 'add', 'edit', 'comment', 'reply', 'use', 'react', 'rate', 'download'],
         required: true
     },
-    timestamp: {
-        type: 'object'
+    timestamp: {},
+    user_id: {
+        type:Number,
+        required: true
     },
-    user_id: objectid,
     content_id: {
         type: 'string',
         required: true
@@ -39,9 +40,6 @@ const ActivitySchema = mongoose.Schema({
         }
     },
     share_info: {
-        postURI: {
-            type: 'string'
-        },
         platform: {
             type: 'string'
         }
