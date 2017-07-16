@@ -3,7 +3,7 @@
 
 const co = require('./common.js');
 
-let host = 'localhost';
+let host = 'mongodb';
 //read mongo URL from /etc/hosts
 const fs = require('fs');
 try {
