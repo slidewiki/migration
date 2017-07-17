@@ -77,10 +77,12 @@ const FILTER_SPAM_QUERY = "(SELECT deck_id FROM `deck_revision` WHERE `user_id` 
 " AND `title` NOT LIKE '%24/7%' AND `abstract` NOT LIKE '%24/7%' AND `title` NOT LIKE '%0532%' AND `abstract` NOT LIKE '%0532%' GROUP BY deck_id)"
 
 const DECKS_TO_MIGRATE = [2838];
+//const DECKS_TO_MIGRATE = [];
 const DECKS_LIMIT = 0;
 const DECKS_OFFSET = 0;
 const ImageURI = 'localhost'; //for creating thumbnails
 const ImagePort = 8882; //for creating thumbnails
+const FILE_URL_PREFIX = "http://fileservice.slidewiki.org";
 
 
 // function uniq(a) {
@@ -713,7 +715,7 @@ function process_content(html){
     }
     //let re2 = /(<h2>)(.*?)(<\/h2>)(.*?)/ig;
     let content = html.replace('<h2>' + title + '</h2>', '<h3>' + title + '</h3>'); //cutting a title
-    content = content.replace(/.\/upload/g, 'http://slidewiki.org/upload'); //replace all occurences of media files with the correct absolute url
+    content = content.replace(/(?:http:\/\/slidewiki\.org|\.)\/upload/g, FILE_URL_PREFIX); //replace all occurences of media files with the correct absolute url
     return {content: content, title: title};
 }
 
