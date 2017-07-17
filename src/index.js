@@ -1357,7 +1357,7 @@ function process_user(mysql_user, callback){
         surname: mysql_user.last_name,
         forename: mysql_user.first_name,
         country: mysql_user.location,
-        spokenLanguages: {},
+        spokenLanguages:[],
         frontendLanguage: 'en_GB', //will be default
         picture: mysql_user.picture,
         interests: '',
