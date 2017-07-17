@@ -24,8 +24,12 @@ function migrate_usernames(done) {
                     return helper.connectToDatabase()
                         .then((db) => db.collection('users'))
                         .then((coll) => coll.mapReduce(function () {
-                                emit(this.username.toLowerCase().replace(/[|\s&;$%&§\{\[\]\}@"<>()+,!?\-._~\=\*\+\#\;\\/]/g, ''), this);
-                            },
+                            if (!this.username || !this.email)
+                                return;
+
+                            this.email = this.email.toLowerCase();
+                            emit(this.username.toLowerCase().replace(/[|\s&;$%&§\{\[\]\}@"<>()+,!?\-._~\=\*\+\#\;\\/]/g, ''), this);
+                        },
                             function (key, values) {
                                 if (values.length === undefined || values.length === null || values.length < 1)
                                     values = [values];
