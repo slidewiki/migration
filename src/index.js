@@ -232,7 +232,7 @@ function migrate_media(callback){
                 callback();
             };
             //let counter = 0;
-            let number_of_tasks = Math.ceil(rows[0].total / 50000);
+            let number_of_tasks = Math.ceil(rows[0].total / 50000); //spliting the data in 50000-items chunks
             for(let i = 0; i < number_of_tasks; i++ ){
                 let limit = 50000, offset = 50000*i;
                 let options = {'limit': limit, 'offset':offset};
