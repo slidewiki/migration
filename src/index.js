@@ -121,26 +121,26 @@ con.connect((err) => {
             }
         });
         async.series([
-            drop_users, //try to empty users collection;
-            migrate_users, //migrate users
-            drop_slides,
+            //drop_users, //try to empty users collection;
+            //migrate_users, //migrate users
+            //drop_slides,
 
-            drop_decks, //try to empty deck collection; AFTER THAT
+            //drop_decks, //try to empty deck collection; AFTER THAT
 
-            remove_usage,
-            migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
+            //remove_usage,
+            //migrate_decks, //migrate deck, deck_revision, deck_content, collaborators, AFTER THAT
 
-            add_usage_handler, //do it once after all decks have been migrated
-            format_contributors_slides, //do it once after all decks have been migrated
-            format_contributors_decks, //do it once after all decks have been migrated
+            //add_usage_handler, //do it once after all decks have been migrated
+            //format_contributors_slides, //do it once after all decks have been migrated
+            //format_contributors_decks, //do it once after all decks have been migrated
 
-            fix_origin_slides, //build origins using new revision numbers instead of old ones
-            fix_origin_decks, //build origins using new revision numbers instead of old ones
+            //fix_origin_slides, //build origins using new revision numbers instead of old ones
+            //fix_origin_decks, //build origins using new revision numbers instead of old ones
 
-            //migrate_media, //should test - locally runs out of memory
-            drop_counters,
-            createCounters,
-            fix_user,
+            migrate_media, //should test - locally runs out of memory
+            //drop_counters,
+            //createCounters,
+            //fix_user,
             //adjust_model_decks //in development
             //createThumbs,
         ],
@@ -172,8 +172,38 @@ function createThumbs(callback) {
     });
 }
 
-function migrate_media(callback){
+function process_media_with_limit(options, callback){
     con.query('SELECT * FROM media INNER JOIN media_relations ON media.id = media_relations.media_id WHERE ' +
+    "`user_id` < 3891 AND (`user_id` NOT BETWEEN 1594 AND 1711) " +
+    " AND (`user_id` NOT BETWEEN 1462 AND 1569) AND `user_id` NOT IN (160, 1048, 1162, 1306, 1323, 1637, 1706, 1722, 1749, 1877," +
+    " 1879, 1958, 2019, 2064, 2068, 2085, 2087, 2100, 2152, 2167, 2193, 2213, 2329, 2313, 2339, 2348, 2501, 2510, 2523, 2524, 2540," +
+    " 2546, 2593, 2602, 2603, 2610, 2627, 2634, 2653, 2655, 2671, 2694, 2707, 2756, 2777, 2819, 2843, 2873, 2877, 2882, 2896, 2904, " +
+    " 2926, 2942, 2973, 2976, 2980, 2985, 3021, 3062, 3063, 3064, 3076,  3091, 3101, 3102, 3103, 3124, 3181, 3190, 3200, 3213, 3224, " +
+    " 3240, 3242, 3246, 3247, 3248, 3251, 3263, 3274, 3275, 3277, 3278, 3280, 3290, 3302, 3304, 3306, 3313,  3322, 3327,  3328, 3349, " +
+    " 3370, 3387, 3408, 3412, 3416, 3420, 3423, 3431, 3433, 3437, 3442, 3448, 3453, 3459, 3461, 3464, 3490, 3492, 3495, 3497, 3500, 3513, " +
+    " 3517, 3519, 3520, 3523, 3525, 3527, 3533, 3538, 3549, 3552, 3560, 3565, 3585, 3601, 3620, 3622, 3635, 3650, 3656, 3634, 3657, 3673, " +
+    " 3675, 3676, 3684, 3686, 3721, 3723, 3727, 3742, 3744, 3750, 3764, 3765, 3770, 3775, 3728, 3798, 3781, 3786, 3788, 3789, 3795, 3808, " +
+    " 3810, 3819, 3832,3833, 3835, 3838, 3839, 3823, 3841, 3844, 3848, 3847, 3850, 3852, 3854, 3859, 3867, 3868, 3873, 3874, 3876, 3877, " +
+    " 3878, 3879  ) LIMIT " + options.limit + " OFFSET " + options.offset , (err, rows) =>{
+        console.log(err);
+        if (err) {
+            console.log(err);
+
+            return callback(err);
+        }else{
+            console.log('Starting the migration of media: ' + rows.length + ' entries');
+            let mysql_medias = rows;
+            async.eachSeries(mysql_medias, process_media, () => {
+                console.log('Bunch of media is migrated');
+                return callback();
+            })
+        }
+    })
+}
+
+function migrate_media(callback){
+
+    con.query('SELECT count(*) AS total FROM media INNER JOIN media_relations ON media.id = media_relations.media_id WHERE ' +
 
     "`user_id` < 3891 AND (`user_id` NOT BETWEEN 1594 AND 1711) " +
     " AND (`user_id` NOT BETWEEN 1462 AND 1569) AND `user_id` NOT IN (160, 1048, 1162, 1306, 1323, 1637, 1706, 1722, 1749, 1877," +
@@ -191,15 +221,25 @@ function migrate_media(callback){
             callback(err);
             return;
         }else{
-            console.log('Starting the migration of media: ' + rows.length + ' entries');
-            let mysql_medias = rows;
-            async.eachSeries(mysql_medias, process_media, () => {
-                console.log('media are migrated');
+            console.log('Starting the migration of media: ' + rows[0].total + ' entries');
+
+            //processing a chunk
+            let q = async.queue(process_media_with_limit, 1);
+
+            // // assign a callback
+            q.drain = function() {
+                console.log('all media items have been migrated');
                 callback();
-            })
+            };
+            //let counter = 0;
+            let number_of_tasks = Math.ceil(rows[0].total / 50000);
+            for(let i = 0; i < number_of_tasks; i++ ){
+                let limit = 50000, offset = 50000*i;
+                let options = {'limit': limit, 'offset':offset};
+                q.push(options); //adding a limit and offset to produce a chunk to the quee
+            }
         }
-    })
-}
+    });}
 
 
 function process_media(media, callback){
