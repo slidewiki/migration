@@ -52,16 +52,19 @@ function prepend_slide_title(callback){
                 let matchPPTX, matchAlreadyIn = '';
                 try {
                     matchAlreadyIn = content.match(reAlreadyIn);
-                    matchPPTX = content.match(rePPTX);
+                    matchPPTX = content.match(rePPTX);                   
                     if (!matchPPTX && !matchAlreadyIn){ //this is not imported slide and there is no title already prepended
                         revision.content = '<h3>' + revision.title + '</h3>' + content;
-
                     }
+                    revision.content = revision.content.replace('http://fileservice', 'https://fileservice');
+                    
                     cbEach2();
                 } catch (error) {
                     console.log('error of prepending title for slide ' + slide._id + '-' + revision.id);
                     cbEach2();
                 }
+                
+                
             }, () => {
                 slide.save(cbEach);
             });
