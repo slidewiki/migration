@@ -15,7 +15,7 @@ const Slide = co.Slide;
 
 mongoose.Promise = global.Promise;
 
-const FILE_URL_PREFIX = 'https://fileservice';
+const FILE_URL_PREFIX = 'https://fileservice'; //we only need this part here
 
 //connecting to mongoDB
 mongoose.connect(Config.PathToMongoDB, (err) => {
@@ -58,7 +58,7 @@ function prepend_slide_title(callback){
                     if (!matchPPTX && !matchAlreadyIn){ //this is not imported slide and there is no title already prepended
                         revision.content = '<h3>' + revision.title + '</h3>' + content;
                     }
-                    revision.content = revision.content.replace(/(?:http:\/\/slidewiki\.org|\.)\/upload/g, FILE_URL_PREFIX);
+                    revision.content = revision.content.replace(/(?:http:\/\/slidewiki\.org|\.)\/upload/g, FILE_URL_PREFIX + '.slidewiki.org');
                     revision.content = revision.content.replace('http://fileservice', FILE_URL_PREFIX);
 
                     cbEach2();
