@@ -82,7 +82,7 @@ const DECKS_LIMIT = 0;
 const DECKS_OFFSET = 0;
 const ImageURI = 'localhost'; //for creating thumbnails
 const ImagePort = 8882; //for creating thumbnails
-const FILE_URL_PREFIX = "http://fileservice.slidewiki.org";
+const FILE_URL_PREFIX = "https://fileservice.slidewiki.org";
 
 
 // function uniq(a) {

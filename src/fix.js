@@ -15,6 +15,8 @@ const Slide = co.Slide;
 
 mongoose.Promise = global.Promise;
 
+const FILE_URL_PREFIX = 'https://fileservice';
+
 //connecting to mongoDB
 mongoose.connect(Config.PathToMongoDB, (err) => {
     if (err) throw err;
@@ -52,19 +54,20 @@ function prepend_slide_title(callback){
                 let matchPPTX, matchAlreadyIn = '';
                 try {
                     matchAlreadyIn = content.match(reAlreadyIn);
-                    matchPPTX = content.match(rePPTX);                   
+                    matchPPTX = content.match(rePPTX);
                     if (!matchPPTX && !matchAlreadyIn){ //this is not imported slide and there is no title already prepended
                         revision.content = '<h3>' + revision.title + '</h3>' + content;
                     }
-                    revision.content = revision.content.replace('http://fileservice', 'https://fileservice');
-                    
+                    revision.content = revision.content.replace(/(?:http:\/\/slidewiki\.org|\.)\/upload/g, FILE_URL_PREFIX);
+                    revision.content = revision.content.replace('http://fileservice', FILE_URL_PREFIX);
+
                     cbEach2();
                 } catch (error) {
                     console.log('error of prepending title for slide ' + slide._id + '-' + revision.id);
                     cbEach2();
                 }
-                
-                
+
+
             }, () => {
                 slide.save(cbEach);
             });
