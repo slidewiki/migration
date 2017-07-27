@@ -133,7 +133,8 @@ const SlideSchema = mongoose.Schema({
         revision: Number,
         mysql_revision: Number,
         user: Number,
-        title: String
+        title: String,
+        kind: String
     },
     timestamp: {
         type: String,
