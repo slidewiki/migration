@@ -5,28 +5,28 @@ const co = require('./common.js');
 
 let host = 'mongodb';
 //read mongo URL from /etc/hosts
-const fs = require('fs');
-try {
-    const lines = fs.readFileSync('/etc/hosts').toString().split('\n');
-    lines.filter((line) => line.includes('mongodb')).forEach((line) => {
-        const entries = line.split(' ');
-        host = entries[entries.length - 1];
-        console.log('Using ' + host + ' as database host.');
-    });
-} catch (e) {
-    console.log('Exception: Windows or no read rights to read /etc/hosts (bad)');
-}
-//read mongo URL from ENV
-host = (!co.isEmpty(process.env.DATABASE_URL)) ? process.env.DATABASE_URL : host;
-if (host !== 'localhost')
-    console.log('Using ' + host + ' as database host.');
+// const fs = require('fs');
+// try {
+//     const lines = fs.readFileSync('/etc/hosts').toString().split('\n');
+//     lines.filter((line) => line.includes('mongodb')).forEach((line) => {
+//         const entries = line.split(' ');
+//         host = entries[entries.length - 1];
+//         console.log('Using ' + host + ' as database host.');
+//     });
+// } catch (e) {
+//     console.log('Exception: Windows or no read rights to read /etc/hosts (bad)');
+// }
+// //read mongo URL from ENV
+// host = (!co.isEmpty(process.env.DATABASE_URL)) ? process.env.DATABASE_URL : host;
+// if (host !== 'localhost')
+//     console.log('Using ' + host + ' as database host.');
 
 let port = 27017;
 //read mongo port from ENV
-if (!co.isEmpty(process.env.DATABASE_PORT)) {
-    port = process.env.DATABASE_PORT;
-    console.log('Using ' + port + ' as database port.');
-}
+// if (!co.isEmpty(process.env.DATABASE_PORT)) {
+//     port = process.env.DATABASE_PORT;
+//     console.log('Using ' + port + ' as database port.');
+// }
 
 //JWT serial
 let JWTSerial = '69aac7f95a9152cd4ae7667c80557c284e413d748cca4c5715b3f02020a5ae1b';

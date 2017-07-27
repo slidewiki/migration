@@ -161,26 +161,10 @@ const DeckSchema = mongoose.Schema({
         },
         mysql_revision: Number,
         user: Number,
-        title: String
+        title: String,
+        kind: String
     },
-    // translations: {
-    //     status: {
-    //         type: 'string',
-    //         enum: ['original', 'google', 'revised', null]
-    //     },
-    //     source: {
-    //         id: {
-    //             type: 'number'
-    //         },
-    //         revision: {
-    //             type: 'number'
-    //         }
-    //     },
-    //     translator: {
-    //         id: 'number',
-    //         username: 'string'
-    //     }
-    // },
+
     lastUpdate: {
         type: 'string',
         format: 'datetime'
